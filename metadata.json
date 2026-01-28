@@ -1,0 +1,7 @@
+{
+  "name": "Petit Français - French for Kids",
+  "description": "A gamified French learning application for children featuring vocabulary, grammar, interactive quizzes, and a parent dashboard for progress tracking.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
