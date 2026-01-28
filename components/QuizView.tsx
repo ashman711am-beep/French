@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { QuizQuestion, Difficulty } from '../types';
-import { generateQuiz } from '../services/geminiService';
+import { generateQuiz, playPronunciation } from '../services/geminiService';
 
 interface QuizViewProps {
   subId: string;
@@ -19,14 +19,12 @@ const QuizView: React.FC<QuizViewProps> = ({ subId, category, onPointEarned, onF
   const [sessionScore, setSessionScore] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // We use a local state to track when we should re-fetch if needed
   useEffect(() => {
     if (!difficulty) return;
 
     const fetchQuestions = async () => {
       setLoading(true);
       try {
-        // Shuffling happens in the service layer for true dynamism
         const data = await generateQuiz(subId, category, difficulty);
         setQuestions(data);
       } catch (err) {
@@ -107,6 +105,9 @@ const QuizView: React.FC<QuizViewProps> = ({ subId, category, onPointEarned, onF
       const earned = pointsMap[difficulty] || 10;
       setSessionScore(s => s + earned);
       onPointEarned(earned);
+      playPronunciation(option);
+    } else {
+      playPronunciation(current.correctAnswer);
     }
   };
 
@@ -136,9 +137,16 @@ const QuizView: React.FC<QuizViewProps> = ({ subId, category, onPointEarned, onF
         <div className="absolute top-0 right-0 w-48 h-48 bg-purple-50 rounded-full -mr-24 -mt-24 opacity-50 pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-50 rounded-full -ml-16 -mb-16 opacity-50 pointer-events-none"></div>
         
-        <h3 className="text-3xl font-black text-gray-800 mb-12 relative z-10 leading-tight">
-          {current.question}
-        </h3>
+        <div className="flex justify-between items-start mb-12 relative z-10 gap-4">
+          <h3 className="text-3xl font-black text-gray-800 leading-tight flex-1">
+            {current.question}
+          </h3>
+          <button 
+            onClick={() => playPronunciation(current.question)}
+            className="bg-blue-100 hover:bg-blue-200 p-3 rounded-2xl text-2xl shadow-sm transition-transform active:scale-90"
+            title="Hear question"
+          >🔊</button>
+        </div>
         
         <div className="grid grid-cols-1 gap-5 relative z-10">
           {current.options.map((opt, idx) => (
@@ -146,16 +154,24 @@ const QuizView: React.FC<QuizViewProps> = ({ subId, category, onPointEarned, onF
               key={idx}
               onClick={() => handleOptionClick(opt)}
               disabled={selectedOption !== null}
-              className={`w-full text-left p-6 rounded-3xl text-xl font-bold transition-all border-b-8 active:border-b-0 text-black
-                ${selectedOption === null ? 'bg-gray-50 border-gray-200 hover:bg-blue-50 hover:border-blue-400 hover:-translate-y-1' : ''}
-                ${selectedOption === opt && isCorrect === true ? 'bg-green-100 border-green-500 !text-green-800 scale-[1.02]' : ''}
-                ${selectedOption === opt && isCorrect === false ? 'bg-red-100 border-red-500 !text-red-800' : ''}
-                ${selectedOption !== opt && opt === current.correctAnswer && selectedOption !== null ? 'bg-green-50 border-green-500 !text-green-800' : ''}
-                ${selectedOption !== null && selectedOption !== opt && opt !== current.correctAnswer ? 'opacity-30 grayscale bg-gray-100' : ''}
+              className={`w-full text-left p-6 rounded-3xl text-xl font-bold transition-all border-b-8 active:border-b-0 group
+                ${selectedOption === null ? 'bg-gray-50 border-gray-200 hover:bg-blue-50 hover:border-blue-400 hover:-translate-y-1 !text-black' : ''}
+                ${selectedOption === opt && isCorrect === true ? 'bg-green-100 border-green-500 !text-black scale-[1.02]' : ''}
+                ${selectedOption === opt && isCorrect === false ? 'bg-red-100 border-red-500 !text-black' : ''}
+                ${selectedOption !== opt && opt === current.correctAnswer && selectedOption !== null ? 'bg-green-50 border-green-500 !text-black' : ''}
+                ${selectedOption !== null && selectedOption !== opt && opt !== current.correctAnswer ? 'opacity-30 grayscale bg-gray-100 !text-black' : ''}
               `}
             >
               <div className="flex items-center justify-between">
-                <span>{opt}</span>
+                <div className="flex items-center gap-3">
+                  <span>{opt}</span>
+                  {selectedOption === null && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); playPronunciation(opt); }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 p-1.5 rounded-lg text-sm"
+                    >🔊</button>
+                  )}
+                </div>
                 {selectedOption === opt && (
                   <span className="text-3xl">{isCorrect ? '✅' : '❌'}</span>
                 )}
@@ -168,13 +184,16 @@ const QuizView: React.FC<QuizViewProps> = ({ subId, category, onPointEarned, onF
         </div>
 
         {selectedOption && (
-          <div className={`mt-12 p-10 rounded-[2.5rem] animate-in fade-in slide-in-from-bottom-6 duration-700 shadow-inner ${isCorrect ? 'bg-green-50 border-4 border-green-100 text-green-800' : 'bg-red-50 border-4 border-red-100 text-red-800'}`}>
-            <p className="font-black text-3xl mb-3 flex items-center gap-3">
-              {isCorrect ? 'MAGNIFIQUE! 🎉' : 'Oups! 💡'}
+          <div className={`mt-12 p-10 rounded-[2.5rem] animate-in fade-in slide-in-from-bottom-6 duration-700 shadow-inner cursor-pointer relative ${isCorrect ? 'bg-green-50 border-4 border-green-100 text-green-800' : 'bg-red-50 border-4 border-red-100 text-red-800'}`}
+            onClick={() => playPronunciation(current.explanation)}
+          >
+            <p className="font-black text-3xl mb-3 flex items-center justify-between">
+              <span>{isCorrect ? 'MAGNIFIQUE! 🎉' : 'Oups! 💡'}</span>
+              <span className="text-sm opacity-40">🔊 Click to hear tip</span>
             </p>
             <p className="text-xl font-bold opacity-90 mb-8 leading-relaxed">{current.explanation}</p>
             <button 
-              onClick={handleNext}
+              onClick={(e) => { e.stopPropagation(); handleNext(); }}
               className="w-full bg-purple-600 text-white py-6 rounded-3xl font-black text-2xl shadow-2xl hover:bg-purple-700 transition-all hover:scale-[1.03] active:scale-95 border-b-8 border-purple-800"
             >
               {currentIndex === questions.length - 1 ? 'Finish Adventure! 🏁' : 'Next Question ➜'}

@@ -25,12 +25,15 @@ const Navbar: React.FC<NavbarProps> = ({ stars }) => {
         </span>
       </div>
 
-      <div className="hidden md:flex items-center space-x-8">
+      <div className="hidden md:flex items-center space-x-6">
         <Link to="/vocabulary" className={`font-semibold text-lg transition-colors ${isActive('/vocabulary') ? 'text-blue-600' : 'text-gray-500 hover:text-blue-500'}`}>
           Vocabulary
         </Link>
         <Link to="/grammar" className={`font-semibold text-lg transition-colors ${isActive('/grammar') ? 'text-blue-600' : 'text-gray-500 hover:text-blue-500'}`}>
           Grammar
+        </Link>
+        <Link to="/speaking" className={`font-semibold text-lg transition-colors ${isActive('/speaking') ? 'text-blue-600' : 'text-gray-500 hover:text-blue-500'}`}>
+          Speaking 🎙️
         </Link>
         <Link to="/stats" className={`font-semibold text-lg transition-colors ${isActive('/stats') ? 'text-blue-600' : 'text-gray-500 hover:text-blue-500'}`}>
           My Stars

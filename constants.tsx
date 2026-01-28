@@ -3,6 +3,8 @@ import { SubCategory } from './types';
 
 export const VOCAB_SUBCATEGORIES: SubCategory[] = [
   { id: 'animals', name: 'Les Animaux', icon: '🐾', description: 'Learn about your furry and feathered friends!', color: 'bg-orange-400' },
+  { id: 'morning_routine', name: 'Le Matin', icon: '🌅', description: 'Brush your teeth and get ready for a big day!', color: 'bg-sky-300' },
+  { id: 'evening_routine', name: 'Le Soir', icon: '🌙', description: 'Pajamas, stories, and getting ready for bed.', color: 'bg-indigo-300' },
   { id: 'food', name: 'La Nourriture', icon: '🍕', description: 'Yummy words for food and drinks!', color: 'bg-red-400' },
   { id: 'colors', name: 'Les Couleurs', icon: '🎨', description: 'Paint the world with French colors!', color: 'bg-blue-400' },
   { id: 'family', name: 'La Famille', icon: '👨‍👩‍👧', description: 'Words for your loved ones.', color: 'bg-green-400' },
@@ -26,4 +28,13 @@ export const GRAMMAR_SUBCATEGORIES: SubCategory[] = [
   { id: 'adjectives', name: 'Les Adjectifs', icon: '🪄', description: 'Make your French sparkle with descriptive words!', color: 'bg-fuchsia-500' },
   { id: 'prepositions', name: 'Les Prépositions', icon: '📍', description: 'Learn how to say where things are!', color: 'bg-emerald-500' },
   { id: 'pronouns', name: 'Les Pronoms', icon: '👥', description: 'Learn how to use "je", "tu", "il", "nous" and more!', color: 'bg-violet-500' },
+];
+
+export const SPEAKING_SUBCATEGORIES: SubCategory[] = [
+  { id: 's_intro', name: 'Se Présenter', icon: '👋', description: 'Learn how to say hello and introduce yourself!', color: 'bg-yellow-400' },
+  { id: 's_hobbies', name: 'Mes Passions', icon: '⚽', description: 'Talk about what you love to do!', color: 'bg-rose-400' },
+  { id: 's_animals', name: 'Les Animaux', icon: '🐶', description: 'Talk about your favorite animals!', color: 'bg-orange-400' },
+  { id: 's_food', name: 'Miam Miam!', icon: '🍦', description: 'Describe your favorite treats and meals!', color: 'bg-red-400' },
+  { id: 's_family', name: 'Ma Famille', icon: '🏠', description: 'Tell the tutor about your family.', color: 'bg-green-400' },
+  { id: 's_school', name: 'Mon École', icon: '🎒', description: 'Talk about your day at school.', color: 'bg-blue-400' },
 ];

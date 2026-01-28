@@ -1,7 +1,8 @@
 
 export enum CategoryType {
   VOCABULARY = 'VOCABULARY',
-  GRAMMAR = 'GRAMMAR'
+  GRAMMAR = 'GRAMMAR',
+  SPEAKING = 'SPEAKING'
 }
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
@@ -16,13 +17,15 @@ export interface SubCategory {
 
 export interface WordItem {
   french: string;
-  feminine?: string; // New field for adjective learning
+  feminine?: string;
   english: string;
   example: string;
   exampleEnglish: string;
   imageUrl?: string;
   conjugations?: { subject: string; form: string }[];
-  articleType?: string; // e.g., 'le', 'la', 'les', 'un', 'une', 'des', 'du', 'de la', 'de l\''
+  articleType?: string;
+  isOverview?: boolean;
+  multipleExamples?: { text: string; translation: string }[];
 }
 
 export interface QuizQuestion {
@@ -40,4 +43,4 @@ export interface HistoryItem {
   powerRating?: number;
 }
 
-export type ViewMode = 'choice' | 'learning' | 'quiz';
+export type ViewMode = 'choice' | 'learning' | 'quiz' | 'speaking';

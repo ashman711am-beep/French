@@ -90,14 +90,19 @@ export const seedContent = async (subcategory: string, type: string, extraParam?
   const isArticles = subcategory === 'articles';
   const isAdjectives = subcategory === 'adjectives';
   const isPronouns = subcategory === 'pronouns';
-  const limit = (isArticles || isVerbTense || type === 'VOCABULARY') ? 50 : 20;
+  const isSpeaking = type === 'SPEAKING';
+  const limit = (isArticles || isVerbTense || type === 'VOCABULARY' || isSpeaking) ? 50 : 20;
   
   if (existing.length >= limit) return existing;
 
   const ai = getAI();
   let prompt = "";
 
-  if (type === 'GRAMMAR') {
+  if (isSpeaking) {
+    prompt = `Generate a list of exactly 20 French phrases and key vocabulary items related to the speaking topic: "${subcategory}". 
+    Focus on conversational phrases a child would use.
+    Format: JSON array of objects {french, english, example, exampleEnglish}.`;
+  } else if (type === 'GRAMMAR') {
     if (isVerbTense) {
       prompt = `Generate a list of exactly 50 most used French verbs in the ${subcategory} tense. 
       For each verb, provide:
@@ -109,10 +114,18 @@ export const seedContent = async (subcategory: string, type: string, extraParam?
       Format: JSON array of objects {french, english, example, exampleEnglish, conjugations: [{subject, form}]}.`;
     } else if (isArticles) {
       const targetArticle = extraParam || "le";
-      prompt = `Generate exactly 50 diverse and common French noun phrases using the article "${targetArticle}". 
-      Each item should focus on teaching how "${targetArticle}" is used in context for children.
-      Format: JSON array of objects {french: "The full phrase like '${targetArticle} chat'", english: "English translation", example: "Full sentence using the phrase", exampleEnglish: "Translation of sentence"}.
-      Set articleType: "${targetArticle}" for all items.`;
+      prompt = `Generate exactly 50 common French noun phrases using the article "${targetArticle}". 
+      IMPORTANT: The first item in the array MUST be a special "Overview" card for the article "${targetArticle}".
+      For the Overview card: 
+      - french: "${targetArticle.toUpperCase()}"
+      - english: "Grammar Rule: When to use ${targetArticle}"
+      - isOverview: true
+      - example: "Brief rule explanation in French"
+      - exampleEnglish: "Brief rule explanation in English"
+      - multipleExamples: [ {text: "Full French example 1", translation: "English 1"}, ... (at least 3) ]
+
+      The following 49 items should be standard noun phrases.
+      Format: JSON array of objects {french, english, example, exampleEnglish, isOverview, multipleExamples: [{text, translation}]}.`;
     } else if (isAdjectives) {
       const adjectiveType = extraParam || "General";
       prompt = `Generate exactly 20 French adjectives specifically for the category: "${adjectiveType}".
@@ -165,6 +178,18 @@ export const seedContent = async (subcategory: string, type: string, extraParam?
               example: { type: Type.STRING },
               exampleEnglish: { type: Type.STRING },
               articleType: { type: Type.STRING },
+              isOverview: { type: Type.BOOLEAN },
+              multipleExamples: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    text: { type: Type.STRING },
+                    translation: { type: Type.STRING }
+                  },
+                  required: ["text", "translation"]
+                }
+              },
               conjugations: {
                 type: Type.ARRAY,
                 items: {
@@ -193,9 +218,11 @@ export const seedContent = async (subcategory: string, type: string, extraParam?
   }
 };
 
-export const generateEducationalImage = async (word: string, meaning: string): Promise<string | null> => {
+export const generateEducationalImage = async (word: string, meaning: string, isOverview: boolean = false): Promise<string | null> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const prompt = `A clear, high-quality educational illustration for children explaining the French word "${word}" which means "${meaning}". The illustration should be simple, bright, and clearly depict the object or concept to help a child learn and remember the word. Avoid text in the image. Professional storybook style.`;
+  const prompt = isOverview 
+    ? `A colorful, educational infographic style illustration for children representing the French grammatical concept of the article "${word}". Show multiple objects that use this article to help a child visualize the rule. Bright, clear, storybook style. No text except maybe the word "${word}" if necessary.`
+    : `A clear, high-quality educational illustration for children explaining the French word "${word}" which means "${meaning}". The illustration should be simple, bright, and clearly depict the object or concept to help a child learn and remember the word. Avoid text in the image. Professional storybook style.`;
 
   try {
     const response = await ai.models.generateContent({

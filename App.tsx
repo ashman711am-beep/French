@@ -5,8 +5,9 @@ import Navbar from './components/Navbar';
 import CategoryGrid from './components/CategoryGrid';
 import LearningView from './components/LearningView';
 import QuizView from './components/QuizView';
+import SpeakingView from './components/SpeakingView';
 import ParentDashboard from './components/ParentDashboard';
-import { VOCAB_SUBCATEGORIES, GRAMMAR_SUBCATEGORIES } from './constants';
+import { VOCAB_SUBCATEGORIES, GRAMMAR_SUBCATEGORIES, SPEAKING_SUBCATEGORIES } from './constants';
 import { CategoryType, HistoryItem, ViewMode } from './types';
 
 const Home = () => (
@@ -20,26 +21,56 @@ const Home = () => (
         </p>
     </div>
     
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-      <button onClick={() => window.location.hash = '#/vocabulary'} className="group bg-white rounded-5xl p-12 shadow-xl border-4 border-blue-100 hover:border-blue-400 hover:shadow-2xl transition-all hover:-translate-y-2 text-left relative overflow-hidden">
-        <div className="text-7xl mb-6 transform group-hover:scale-125 transition-transform duration-500">🦊</div>
-        <h2 className="text-4xl font-black mb-4 text-gray-800">Vocabulaire</h2>
-        <p className="text-xl text-gray-500 mb-8">Master the Top 50 Animals, Foods, and more!</p>
-        <div className="inline-block bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-xl shadow-lg group-hover:bg-blue-700">
-          Start Journey ➜
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <button onClick={() => window.location.hash = '#/vocabulary'} className="group bg-white rounded-5xl p-10 shadow-xl border-4 border-blue-100 hover:border-blue-400 hover:shadow-2xl transition-all hover:-translate-y-2 text-left relative overflow-hidden">
+        <div className="text-6xl mb-4 transform group-hover:scale-125 transition-transform duration-500">🦊</div>
+        <h2 className="text-3xl font-black mb-3 text-gray-800">Vocabulaire</h2>
+        <p className="text-lg text-gray-500 mb-6">Master common objects and words!</p>
+        <div className="inline-block bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-lg shadow-lg group-hover:bg-blue-700">
+          Start ➜
         </div>
         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
       </button>
 
-      <button onClick={() => window.location.hash = '#/grammar'} className="group bg-white rounded-5xl p-12 shadow-xl border-4 border-purple-100 hover:border-purple-400 hover:shadow-2xl transition-all hover:-translate-y-2 text-left relative overflow-hidden">
-        <div className="text-7xl mb-6 transform group-hover:scale-125 transition-transform duration-500">🧩</div>
-        <h2 className="text-4xl font-black mb-4 text-gray-800">Grammaire</h2>
-        <p className="text-xl text-gray-500 mb-8">Learn Past, Present & Future like a pro!</p>
-        <div className="inline-block bg-purple-600 text-white px-8 py-4 rounded-2xl font-black text-xl shadow-lg group-hover:bg-purple-700">
-          Master Tenses ➜
+      <button onClick={() => window.location.hash = '#/grammar'} className="group bg-white rounded-5xl p-10 shadow-xl border-4 border-purple-100 hover:border-purple-400 hover:shadow-2xl transition-all hover:-translate-y-2 text-left relative overflow-hidden">
+        <div className="text-6xl mb-4 transform group-hover:scale-125 transition-transform duration-500">🧩</div>
+        <h2 className="text-3xl font-black mb-3 text-gray-800">Grammaire</h2>
+        <p className="text-lg text-gray-500 mb-6">Learn sentence building secrets!</p>
+        <div className="inline-block bg-purple-600 text-white px-6 py-3 rounded-2xl font-black text-lg shadow-lg group-hover:bg-purple-700">
+          Master ➜
         </div>
         <div className="absolute top-0 right-0 w-32 h-32 bg-purple-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
       </button>
+
+      <button onClick={() => window.location.hash = '#/speaking'} className="group bg-white rounded-5xl p-10 shadow-xl border-4 border-yellow-100 hover:border-yellow-400 hover:shadow-2xl transition-all hover:-translate-y-2 text-left relative overflow-hidden">
+        <div className="text-6xl mb-4 transform group-hover:scale-125 transition-transform duration-500">🎙️</div>
+        <h2 className="text-3xl font-black mb-3 text-gray-800">Speaking</h2>
+        <p className="text-lg text-gray-500 mb-6">Talk with AI and fix pronunciation!</p>
+        <div className="inline-block bg-yellow-500 text-white px-6 py-3 rounded-2xl font-black text-lg shadow-lg group-hover:bg-yellow-600">
+          Talk ➜
+        </div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
+      </button>
+    </div>
+  </div>
+);
+
+// Define StatsPage component to fix the 'Cannot find name StatsPage' error
+const StatsPage = ({ stars }: { stars: number }) => (
+  <div className="p-8 text-center max-w-4xl mx-auto">
+    <div className="bg-white rounded-5xl p-12 shadow-2xl border-4 border-yellow-100 relative overflow-hidden">
+      <div className="text-8xl mb-6 animate-bounce">⭐</div>
+      <h1 className="text-6xl font-black text-gray-800 mb-4">Magnifique !</h1>
+      <p className="text-2xl text-gray-500 mb-8 font-medium">
+        You have earned <span className="text-yellow-600 font-black">{stars} stars</span> on your French journey!
+      </p>
+      <button 
+        onClick={() => window.location.hash = '#/'} 
+        className="bg-blue-600 text-white px-10 py-4 rounded-3xl font-black text-xl hover:bg-blue-700 shadow-xl transition-all active:scale-95"
+      >
+        Continue Exploration ➜
+      </button>
+      <div className="absolute top-0 right-0 w-48 h-48 bg-yellow-50 rounded-full -mr-24 -mt-24 opacity-50"></div>
     </div>
   </div>
 );
@@ -54,7 +85,7 @@ const SubCategoryPage = ({ type, stats, addLivePoints, recordHistory }: {
   const navigate = useNavigate();
   const [mode, setMode] = useState<ViewMode>('choice');
 
-  const sub = [...VOCAB_SUBCATEGORIES, ...GRAMMAR_SUBCATEGORIES].find(s => s.id === id);
+  const sub = [...VOCAB_SUBCATEGORIES, ...GRAMMAR_SUBCATEGORIES, ...SPEAKING_SUBCATEGORIES].find(s => s.id === id);
 
   if (!sub) return <div className="p-20 text-center text-3xl font-bold">Oh no! Category not found. 🎈</div>;
 
@@ -66,7 +97,14 @@ const SubCategoryPage = ({ type, stats, addLivePoints, recordHistory }: {
     navigate('/stats');
   };
 
+  const handleFinishSpeaking = (sessionTotal: number) => {
+    recordHistory(sessionTotal, sub.name, type);
+    navigate('/stats');
+  };
+
   if (mode === 'choice') {
+    const isSpeaking = type === CategoryType.SPEAKING;
+
     return (
       <div className="p-8 max-w-4xl mx-auto text-center">
         <button onClick={() => navigate(-1)} className="mb-10 text-gray-400 font-bold hover:text-blue-600 flex items-center gap-2 text-lg">
@@ -97,12 +135,12 @@ const SubCategoryPage = ({ type, stats, addLivePoints, recordHistory }: {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
           <button 
-            onClick={() => setMode('learning')}
+            onClick={() => setMode(isSpeaking ? 'speaking' : 'learning')}
             className="bg-white border-4 border-blue-400 rounded-5xl p-10 shadow-xl hover:bg-blue-50 transition-all hover:scale-105"
           >
-            <div className="text-5xl mb-4">📖</div>
-            <h3 className="text-3xl font-black text-blue-600 mb-2">Learn</h3>
-            <p className="text-gray-500 font-bold">Explore the Top 50 items!</p>
+            <div className="text-5xl mb-4">{isSpeaking ? '💬' : '📖'}</div>
+            <h3 className="text-3xl font-black text-blue-600 mb-2">{isSpeaking ? 'Conversation' : 'Learn'}</h3>
+            <p className="text-gray-500 font-bold">{isSpeaking ? 'Practice free talking with your AI tutor!' : 'Explore the Top 50 items!'}</p>
           </button>
 
           <button 
@@ -110,8 +148,8 @@ const SubCategoryPage = ({ type, stats, addLivePoints, recordHistory }: {
             className="bg-white border-4 border-green-400 rounded-5xl p-10 shadow-xl hover:bg-green-50 transition-all hover:scale-105"
           >
             <div className="text-5xl mb-4">🎯</div>
-            <h3 className="text-3xl font-black text-green-600 mb-2">Quiz</h3>
-            <p className="text-gray-500 font-bold">Test your skills & earn stars</p>
+            <h3 className="text-3xl font-black text-green-600 mb-2">{isSpeaking ? 'Speaking Quiz' : 'Quiz'}</h3>
+            <p className="text-gray-500 font-bold">{isSpeaking ? 'Interactive oral exam - answer in full sentences!' : 'Test your skills & earn stars'}</p>
           </button>
         </div>
       </div>
@@ -130,51 +168,27 @@ const SubCategoryPage = ({ type, stats, addLivePoints, recordHistory }: {
       {mode === 'learning' ? (
         <LearningView 
           subId={sub.id} 
-          category={type} 
+          category={type as any} 
           onComplete={() => setMode('quiz')} 
         />
-      ) : (
+      ) : mode === 'quiz' && type !== CategoryType.SPEAKING ? (
         <QuizView 
           subId={sub.id} 
-          category={type} 
+          category={type as any} 
           onPointEarned={addLivePoints}
           onFinish={handleFinishQuiz} 
+        />
+      ) : (
+        <SpeakingView 
+          subId={sub.id}
+          subName={sub.name}
+          isQuizMode={mode === 'quiz'}
+          onPointEarned={addLivePoints}
+          onFinish={handleFinishSpeaking}
         />
       )}
     </div>
   );
-};
-
-const StatsPage = ({ stars }: { stars: number }) => {
-    const navigate = useNavigate();
-    return (
-        <div className="p-10 text-center">
-            <div className="bg-white rounded-full w-48 h-48 flex items-center justify-center text-7xl mx-auto mb-8 shadow-2xl border-8 border-yellow-100 animate-pulse">
-                ⭐
-            </div>
-            <h1 className="text-5xl font-black mb-4 text-gray-800">You have {stars} Stars!</h1>
-            <p className="text-2xl text-gray-500 mb-10">You're doing amazing! Every correct answer brings more sparkle!</p>
-            
-            <button 
-                onClick={() => navigate('/')}
-                className="bg-blue-600 text-white px-12 py-5 rounded-3xl font-black text-2xl shadow-xl hover:bg-blue-700 transition-all"
-            >
-                Continue Learning! 🚀
-            </button>
-
-            <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-5xl mx-auto">
-                {[50, 100, 250, 500, 1000, 2500, 5000, 10000].map(goal => (
-                    <div key={goal} className={`p-8 rounded-4xl border-4 transition-all ${stars >= goal ? 'bg-white border-yellow-400 scale-105 shadow-lg' : 'bg-gray-50 border-gray-100 opacity-50'}`}>
-                        <div className="text-5xl mb-4">{stars >= goal ? '🏆' : '🔒'}</div>
-                        <div className="font-black text-gray-800 text-xl">{goal} Stars</div>
-                        <div className="text-sm font-bold text-gray-400 uppercase tracking-widest mt-2">
-                            {stars >= goal ? 'Unlocked!' : 'Locked'}
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
 };
 
 const App: React.FC = () => {
@@ -236,6 +250,7 @@ const App: React.FC = () => {
               </div>
             } />
             <Route path="/vocabulary/:id" element={<SubCategoryPage type={CategoryType.VOCABULARY} stats={subcategoryStats} addLivePoints={addLivePoints} recordHistory={recordHistory} />} />
+            
             <Route path="/grammar" element={
               <div className="p-8">
                 <div className="px-6 mb-12">
@@ -246,6 +261,18 @@ const App: React.FC = () => {
               </div>
             } />
             <Route path="/grammar/:id" element={<SubCategoryPage type={CategoryType.GRAMMAR} stats={subcategoryStats} addLivePoints={addLivePoints} recordHistory={recordHistory} />} />
+            
+            <Route path="/speaking" element={
+              <div className="p-8">
+                <div className="px-6 mb-12">
+                    <h2 className="text-5xl font-black text-gray-800 mb-4">Speaking Studio 🎙️</h2>
+                    <p className="text-xl text-gray-500 font-medium">Talk with your AI French tutor and earn stars for speaking!</p>
+                </div>
+                <CategoryGrid categories={SPEAKING_SUBCATEGORIES} type={CategoryType.SPEAKING} stats={subcategoryStats} />
+              </div>
+            } />
+            <Route path="/speaking/:id" element={<SubCategoryPage type={CategoryType.SPEAKING} stats={subcategoryStats} addLivePoints={addLivePoints} recordHistory={recordHistory} />} />
+
             <Route path="/parent" element={<ParentDashboard history={history} />} />
             <Route path="/stats" element={<StatsPage stars={stars} />} />
           </Routes>
