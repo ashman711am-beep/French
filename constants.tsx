@@ -1,3 +1,4 @@
+
 import { SubCategory } from './types';
 
 export const VOCAB_SUBCATEGORIES: SubCategory[] = [
@@ -21,4 +22,8 @@ export const GRAMMAR_SUBCATEGORIES: SubCategory[] = [
   { id: 'present', name: 'Le Présent', icon: '⏳', description: 'Talking about what is happening now.', color: 'bg-indigo-400' },
   { id: 'past', name: 'Le Passé', icon: '⏪', description: 'Talking about things that already happened.', color: 'bg-teal-400' },
   { id: 'future', name: 'Le Futur', icon: '🚀', description: 'Talking about things that will happen.', color: 'bg-yellow-500' },
+  { id: 'articles', name: 'Les Articles', icon: '🔡', description: 'Master "le", "la", "un" and "une" like a pro!', color: 'bg-orange-500' },
+  { id: 'adjectives', name: 'Les Adjectifs', icon: '🪄', description: 'Make your French sparkle with descriptive words!', color: 'bg-fuchsia-500' },
+  { id: 'prepositions', name: 'Les Prépositions', icon: '📍', description: 'Learn how to say where things are!', color: 'bg-emerald-500' },
+  { id: 'pronouns', name: 'Les Pronoms', icon: '👥', description: 'Learn how to use "je", "tu", "il", "nous" and more!', color: 'bg-violet-500' },
 ];

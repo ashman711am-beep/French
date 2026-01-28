@@ -41,32 +41,75 @@ export const getStoredContent = (subId: string): WordItem[] => {
   return stored ? JSON.parse(stored) : [];
 };
 
-export const seedContent = async (subcategory: string, type: string): Promise<WordItem[]> => {
-  const existing = getStoredContent(subcategory);
-  // If it's grammar, we want more items (50 verbs), but we'll seed in batches or check for higher count
-  const limit = type === 'GRAMMAR' ? 50 : 20;
+export const seedContent = async (subcategory: string, type: string, extraParam?: string): Promise<WordItem[]> => {
+  const storageId = extraParam ? `${subcategory}_${extraParam}` : subcategory;
+  const existing = getStoredContent(storageId);
+  
+  const isVerbTense = ['present', 'past', 'future'].includes(subcategory);
+  const isArticles = subcategory === 'articles';
+  const isAdjectives = subcategory === 'adjectives';
+  const isPronouns = subcategory === 'pronouns';
+  const limit = (isArticles || isVerbTense || type === 'VOCABULARY') ? 50 : 20;
+  
   if (existing.length >= limit) return existing;
 
   const ai = getAI();
-  
-  const grammarPrompt = `Generate a list of the 50 most used French verbs in the ${subcategory} tense. 
-  For each verb, provide:
-  1. The infinitive (french)
-  2. English translation (english)
-  3. A simple kid-friendly example sentence (example)
-  4. English translation of the example (exampleEnglish)
-  5. The full conjugation for all 6 subjects: Je, Tu, Il/Elle/On, Nous, Vous, Ils/Elles.
-  Format: JSON array of objects {french, english, example, exampleEnglish, conjugations: [{subject, form}]}.`;
+  let prompt = "";
 
-  const vocabPrompt = `Generate exactly 20 frequently used French ${type.toLowerCase()} items for the subcategory "${subcategory}". 
-  Focus on common objects/concepts for children.
-  Format: JSON array of objects {french, english, example, exampleEnglish}.`;
-
-  const prompt = type === 'GRAMMAR' ? grammarPrompt : vocabPrompt;
+  if (type === 'GRAMMAR') {
+    if (isVerbTense) {
+      prompt = `Generate a list of exactly 50 most used French verbs in the ${subcategory} tense. 
+      For each verb, provide:
+      1. The infinitive (french)
+      2. English translation (english)
+      3. A simple kid-friendly example sentence (example)
+      4. English translation of the example (exampleEnglish)
+      5. The full conjugation for all 6 subjects: Je, Tu, Il/Elle/On, Nous, Vous, Ils/Elles.
+      Format: JSON array of objects {french, english, example, exampleEnglish, conjugations: [{subject, form}]}.`;
+    } else if (isArticles) {
+      const targetArticle = extraParam || "le";
+      prompt = `Generate exactly 50 diverse and common French noun phrases using the article "${targetArticle}". 
+      Each item should focus on teaching how "${targetArticle}" is used in context for children.
+      Format: JSON array of objects {french: "The full phrase like '${targetArticle} chat'", english: "English translation", example: "Full sentence using the phrase", exampleEnglish: "Translation of sentence"}.
+      Set articleType: "${targetArticle}" for all items.`;
+    } else if (isAdjectives) {
+      const adjectiveType = extraParam || "General";
+      prompt = `Generate exactly 20 French adjectives specifically for the category: "${adjectiveType}".
+      IMPORTANT: For each adjective, provide BOTH the masculine and feminine forms.
+      Include common, useful words for kids.
+      Format: JSON array of objects:
+      {
+        "french": "Masculine form",
+        "feminine": "Feminine form",
+        "english": "English translation",
+        "example": "Simple sentence using one of the forms",
+        "exampleEnglish": "Sentence translation"
+      }`;
+    } else if (isPronouns) {
+      prompt = `Generate exactly 20 French pronouns for kids (subject, object, and possessive).
+      Include the basics like "je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles" and others like "moi", "toi", "lui".
+      Format: JSON array of objects {french, english, example, exampleEnglish}.`;
+    } else if (subcategory === 'prepositions') {
+      prompt = `Generate a list of 20 French prepositions (sur, sous, dans, devant, etc.) for kids.
+      For each item, provide:
+      1. The preposition (french)
+      2. English translation (english)
+      3. A simple example sentence (example)
+      4. Translation (exampleEnglish)
+      Format: JSON array of objects {french, english, example, exampleEnglish}.`;
+    } else {
+      prompt = `Generate 20 items for the French grammar topic "${subcategory}". 
+      Format: JSON array of objects {french, english, example, exampleEnglish}.`;
+    }
+  } else {
+    prompt = `Generate exactly 50 frequently used French vocabulary items for the subcategory "${subcategory}". 
+    Focus on common, essential objects and concepts for children.
+    Format: JSON array of objects {french, english, example, exampleEnglish}.`;
+  }
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-flash-lite-latest',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -76,9 +119,11 @@ export const seedContent = async (subcategory: string, type: string): Promise<Wo
             type: Type.OBJECT,
             properties: {
               french: { type: Type.STRING },
+              feminine: { type: Type.STRING },
               english: { type: Type.STRING },
               example: { type: Type.STRING },
               exampleEnglish: { type: Type.STRING },
+              articleType: { type: Type.STRING },
               conjugations: {
                 type: Type.ARRAY,
                 items: {
@@ -99,36 +144,11 @@ export const seedContent = async (subcategory: string, type: string): Promise<Wo
 
     const newItems: WordItem[] = JSON.parse(response.text || "[]");
     const updated = [...existing, ...newItems].slice(0, 100);
-    localStorage.setItem(`${STORAGE_KEY_PREFIX}${subcategory}`, JSON.stringify(updated));
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}${storageId}`, JSON.stringify(updated));
     return updated;
   } catch (error) {
     console.error("Seeding failed", error);
     return existing;
-  }
-};
-
-export const getWordInsight = async (word: string) => {
-  const ai = getAI();
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Provide an interesting, kid-friendly cultural fact or an up-to-date usage example for the French word "${word}". Use Google Search to ensure the information is accurate and current.`,
-      config: {
-        tools: [{ googleSearch: {} }],
-      },
-    });
-
-    const urls = response.candidates?.[0]?.groundingMetadata?.groundingChunks
-      ?.map(chunk => chunk.web?.uri)
-      .filter((uri): uri is string => !!uri) || [];
-
-    return {
-      text: response.text,
-      sources: [...new Set(urls)]
-    };
-  } catch (error) {
-    console.error("Failed to get word insight", error);
-    return null;
   }
 };
 
@@ -144,9 +164,11 @@ export const generateQuiz = async (subcategory: string, type: string, difficulty
   const ai = getAI();
   const seed = Math.floor(Math.random() * 1000000);
 
-  const prompt = `Create a unique, dynamic French quiz for kids using these words: ${selectedWords}.
+  const prompt = `Create a unique, dynamic French quiz for kids based on the topic: ${subcategory} (${type}).
+  Use these specific terms from the curriculum: ${selectedWords}.
   Difficulty: ${difficulty.toUpperCase()}.
   Seed: ${seed}.
+  If it is grammar, focus on rules and correct usage in context.
   Return JSON array of objects {question, options, correctAnswer, explanation}.`;
 
   try {

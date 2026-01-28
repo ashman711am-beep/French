@@ -16,7 +16,7 @@ const Home = () => (
           Salut! <span className="text-blue-600">Apprendre</span> le <span className="text-red-500">Français</span> 🥖
         </h1>
         <p className="text-2xl text-gray-500 max-w-2xl mx-auto font-medium">
-          The most fun way for kids to master 100s of French words and grammar secrets!
+          The most fun way for kids to master French words and grammar secrets!
         </p>
     </div>
     
@@ -24,7 +24,7 @@ const Home = () => (
       <button onClick={() => window.location.hash = '#/vocabulary'} className="group bg-white rounded-5xl p-12 shadow-xl border-4 border-blue-100 hover:border-blue-400 hover:shadow-2xl transition-all hover:-translate-y-2 text-left relative overflow-hidden">
         <div className="text-7xl mb-6 transform group-hover:scale-125 transition-transform duration-500">🦊</div>
         <h2 className="text-4xl font-black mb-4 text-gray-800">Vocabulaire</h2>
-        <p className="text-xl text-gray-500 mb-8">Master the Top 100 Animals, Foods, and more!</p>
+        <p className="text-xl text-gray-500 mb-8">Master the Top 50 Animals, Foods, and more!</p>
         <div className="inline-block bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-xl shadow-lg group-hover:bg-blue-700">
           Start Journey ➜
         </div>
@@ -102,7 +102,7 @@ const SubCategoryPage = ({ type, stats, addLivePoints, recordHistory }: {
           >
             <div className="text-5xl mb-4">📖</div>
             <h3 className="text-3xl font-black text-blue-600 mb-2">Learn</h3>
-            <p className="text-gray-500 font-bold">Look at the Top 100 items!</p>
+            <p className="text-gray-500 font-bold">Explore the Top 50 items!</p>
           </button>
 
           <button 
@@ -230,7 +230,7 @@ const App: React.FC = () => {
               <div className="p-8">
                 <div className="px-6 mb-12">
                     <h2 className="text-5xl font-black text-gray-800 mb-4">Vocabulary World 🎒</h2>
-                    <p className="text-xl text-gray-500 font-medium">Pick a topic to start your 100-word challenge!</p>
+                    <p className="text-xl text-gray-500 font-medium">Pick a topic to start your 50-word challenge!</p>
                 </div>
                 <CategoryGrid categories={VOCAB_SUBCATEGORIES} type={CategoryType.VOCABULARY} stats={subcategoryStats} />
               </div>

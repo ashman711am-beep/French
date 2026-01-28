@@ -16,11 +16,13 @@ export interface SubCategory {
 
 export interface WordItem {
   french: string;
+  feminine?: string; // New field for adjective learning
   english: string;
   example: string;
   exampleEnglish: string;
   imageUrl?: string;
   conjugations?: { subject: string; form: string }[];
+  articleType?: string; // e.g., 'le', 'la', 'les', 'un', 'une', 'des', 'du', 'de la', 'de l\''
 }
 
 export interface QuizQuestion {

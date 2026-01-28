@@ -13,12 +13,17 @@ const Navbar: React.FC<NavbarProps> = ({ stars }) => {
 
   return (
     <nav className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
-      <Link to="/" className="flex items-center space-x-2">
-        <span className="text-3xl">🥖</span>
-        <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-red-600 bg-clip-text text-transparent">
-          Petit Français
+      <div className="flex items-center space-x-4">
+        <Link to="/" className="flex items-center space-x-2">
+          <span className="text-3xl">🥖</span>
+          <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-red-600 bg-clip-text text-transparent">
+            Petit Français
+          </span>
+        </Link>
+        <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 animate-pulse">
+          ⚡ Fast AI
         </span>
-      </Link>
+      </div>
 
       <div className="hidden md:flex items-center space-x-8">
         <Link to="/vocabulary" className={`font-semibold text-lg transition-colors ${isActive('/vocabulary') ? 'text-blue-600' : 'text-gray-500 hover:text-blue-500'}`}>
@@ -33,7 +38,7 @@ const Navbar: React.FC<NavbarProps> = ({ stars }) => {
       </div>
 
       <div className="flex items-center space-x-4">
-        <div className="bg-yellow-100 px-4 py-2 rounded-full flex items-center space-x-2 border border-yellow-200">
+        <div className="bg-yellow-100 px-4 py-2 rounded-full flex items-center space-x-2 border border-yellow-200 shadow-sm">
           <span className="text-xl">⭐</span>
           <span className="font-bold text-yellow-700">{stars}</span>
         </div>
