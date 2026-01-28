@@ -6,6 +6,7 @@ import { WordItem, QuizQuestion, Difficulty, HistoryItem } from '../types';
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const STORAGE_KEY_PREFIX = 'petits_content_';
+const IMAGE_CACHE_PREFIX = 'petits_img_';
 
 function decode(base64: string) {
   const binaryString = atob(base64);
@@ -39,6 +40,19 @@ async function decodeAudioData(
 export const getStoredContent = (subId: string): WordItem[] => {
   const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${subId}`);
   return stored ? JSON.parse(stored) : [];
+};
+
+export const getStoredImage = (word: string): string | null => {
+  return localStorage.getItem(`${IMAGE_CACHE_PREFIX}${word}`);
+};
+
+export const saveStoredImage = (word: string, base64: string): void => {
+  try {
+    localStorage.setItem(`${IMAGE_CACHE_PREFIX}${word}`, base64);
+  } catch (e) {
+    console.warn("Storage full, could not save image", e);
+    // Clear some space if needed in a real app, here we just fail gracefully
+  }
 };
 
 export const seedContent = async (subcategory: string, type: string, extraParam?: string): Promise<WordItem[]> => {
@@ -150,6 +164,38 @@ export const seedContent = async (subcategory: string, type: string, extraParam?
     console.error("Seeding failed", error);
     return existing;
   }
+};
+
+export const generateEducationalImage = async (word: string, meaning: string, size: "1K" | "2K" | "4K"): Promise<string | null> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const prompt = `A clear, high-quality educational illustration for children explaining the French word "${word}" which means "${meaning}". The illustration should be simple, bright, and clearly depict the object or concept to help a child learn and remember the word. Avoid text in the image. Professional storybook style.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: {
+        parts: [{ text: prompt }],
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1",
+          imageSize: size
+        }
+      },
+    });
+
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+  } catch (error: any) {
+    console.error("Image generation failed", error);
+    if (error?.message?.includes("Requested entity was not found")) {
+      throw new Error("API_KEY_RESET");
+    }
+  }
+  return null;
 };
 
 export const generateQuiz = async (subcategory: string, type: string, difficulty: Difficulty = 'medium'): Promise<QuizQuestion[]> => {

@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { WordItem } from '../types';
-import { seedContent, playPronunciation, getStoredContent } from '../services/geminiService';
+import { seedContent, playPronunciation, getStoredContent, generateEducationalImage, getStoredImage, saveStoredImage } from '../services/geminiService';
 
 interface LearningViewProps {
   subId: string;
@@ -34,12 +34,18 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedSubTopic, setSelectedSubTopic] = useState<string | null>(null);
+  
+  // AI Image States
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [imageSize, setImageSize] = useState<"1K" | "2K" | "4K">("1K");
+  const [customImages, setCustomImages] = useState<Record<string, string>>({});
+  const [needsApiKey, setNeedsApiKey] = useState(false);
 
   const isArticles = subId === 'articles';
   const isAdjectives = subId === 'adjectives';
 
+  // Load word items once and persist
   useEffect(() => {
-    // If it's articles or adjectives, we don't auto-load until a sub-topic is picked
     if ((isArticles || isAdjectives) && !selectedSubTopic) {
       setLoading(false);
       return;
@@ -58,6 +64,62 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
     };
     loadData();
   }, [subId, category, selectedSubTopic, isArticles, isAdjectives]);
+
+  const handleGenerateImage = useCallback(async (force = false) => {
+    const current = items[currentIndex];
+    if (!current) return;
+
+    // Check cache first if not forcing refresh
+    const cached = getStoredImage(current.french);
+    if (cached && !force) {
+      setCustomImages(prev => ({ ...prev, [current.french]: cached }));
+      return;
+    }
+
+    try {
+      const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+      if (!hasKey) {
+        setNeedsApiKey(true);
+        return;
+      }
+      
+      setNeedsApiKey(false);
+      setGeneratingImage(true);
+      const result = await generateEducationalImage(current.french, current.english, imageSize);
+      if (result) {
+        saveStoredImage(current.french, result);
+        setCustomImages(prev => ({ ...prev, [current.french]: result }));
+      }
+    } catch (error: any) {
+      if (error.message === "API_KEY_RESET") {
+        setNeedsApiKey(true);
+      }
+    } finally {
+      setGeneratingImage(false);
+    }
+  }, [items, currentIndex, imageSize]);
+
+  // Automatic Image Management Effect
+  useEffect(() => {
+    if (items.length > 0 && !loading) {
+      const current = items[currentIndex];
+      const cached = getStoredImage(current.french);
+      
+      if (cached) {
+        // Instant load from cache
+        setCustomImages(prev => ({ ...prev, [current.french]: cached }));
+      } else {
+        // Trigger generation if not cached
+        handleGenerateImage();
+      }
+    }
+  }, [currentIndex, items, loading, handleGenerateImage]);
+
+  const handleOpenKeySelector = async () => {
+    await (window as any).aistudio.openSelectKey();
+    setNeedsApiKey(false);
+    handleGenerateImage();
+  };
 
   if ((isArticles || isAdjectives) && !selectedSubTopic) {
     const groups = isArticles ? ARTICLE_GROUPS : ADJECTIVE_GROUPS;
@@ -116,6 +178,10 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
   const current = items[currentIndex];
   const progressPercent = ((currentIndex + 1) / items.length) * 100;
   const hasConjugations = current.conjugations && current.conjugations.length > 0;
+  
+  // Source resolution: Custom State (reactive) -> Cache (persistent) -> Fallback
+  const displayImage = customImages[current.french] || getStoredImage(current.french) || `https://picsum.photos/seed/${current?.french || 'default'}/800/600`;
+  const isFromCache = !!getStoredImage(current.french);
 
   const getSubjectStyles = (idx: number) => {
     const styles = [
@@ -131,7 +197,6 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-8 animate-in slide-in-from-right-10 duration-500">
-      {/* Back to selector for Articles / Adjectives */}
       {(isArticles || isAdjectives) && (
         <button 
           onClick={() => setSelectedSubTopic(null)}
@@ -141,7 +206,6 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
         </button>
       )}
 
-      {/* Progress Section */}
       <div className="mb-10 relative">
         <div className="flex items-center justify-between mb-3 px-2">
           <span className="text-sm font-black text-blue-500 uppercase tracking-widest flex items-center gap-2">
@@ -157,15 +221,63 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Main Card */}
         <div className={`${(category === 'GRAMMAR' && hasConjugations) ? 'lg:col-span-6' : 'lg:col-span-8'} flex flex-col items-center order-2 lg:order-1`}>
           <div className="w-full bg-white rounded-5xl p-8 shadow-2xl border-4 border-blue-100 flex flex-col items-center">
-            <div className="w-full mb-8 rounded-3xl overflow-hidden border-4 border-blue-50 shadow-md aspect-video relative">
+            <div className="w-full mb-8 rounded-3xl overflow-hidden border-4 border-blue-50 shadow-md aspect-video relative group/img">
+              {generatingImage ? (
+                <div className="absolute inset-0 bg-blue-50/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 animate-in fade-in">
+                  <div className="text-5xl animate-bounce mb-4">🪄</div>
+                  <p className="text-blue-600 font-black text-center px-4">Creating your educational illustration ({imageSize})...</p>
+                </div>
+              ) : needsApiKey && !isFromCache ? (
+                <div className="absolute inset-0 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center z-10 p-6 text-center">
+                  <div className="text-5xl mb-4">🖼️</div>
+                  <h4 className="text-xl font-black text-gray-800 mb-2">Unlock HD Illustrations</h4>
+                  <p className="text-sm text-gray-500 mb-4 font-medium">Connect your API key to see high-quality images automatically!</p>
+                  <button 
+                    onClick={handleOpenKeySelector}
+                    className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black shadow-lg hover:bg-blue-700 transition-all"
+                  >
+                    Connect AI Illustrator
+                  </button>
+                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-[10px] mt-4 text-blue-400 font-bold hover:underline">Requires Paid Project API Key</a>
+                </div>
+              ) : null}
+              
+              {isFromCache && (
+                <div className="absolute top-4 left-4 z-20 bg-green-500/90 text-white text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                  <span>💾</span> SAVED
+                </div>
+              )}
+
               <img 
-                src={current?.imageUrl || `https://picsum.photos/seed/${current?.french || 'default'}/800/600`} 
+                src={displayImage} 
                 alt={current?.french || 'French word'}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-all duration-500"
               />
+              <div className="absolute top-4 right-4 flex flex-col gap-2">
+                <div className="bg-white/90 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-white/50 flex flex-col gap-2">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center px-2">Resolution</p>
+                  <div className="flex gap-1">
+                    {["1K", "2K", "4K"].map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setImageSize(size as any)}
+                        className={`px-3 py-1 rounded-xl text-xs font-black transition-all ${imageSize === size ? 'bg-blue-600 text-white shadow-md scale-110' : 'bg-gray-100 text-gray-500 hover:bg-blue-100'}`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => handleGenerateImage(true)}
+                    disabled={generatingImage}
+                    className="mt-2 bg-blue-600 text-white p-3 rounded-xl font-black text-xs hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 group/btn"
+                  >
+                    <span className="group-hover/btn:rotate-12 transition-transform">🎨</span> {isFromCache ? 'Redraw Illustration' : 'AI Illustrator'}
+                  </button>
+                </div>
+              </div>
             </div>
 
             {isAdjectives && current.feminine ? (
@@ -212,10 +324,7 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
           </div>
         </div>
 
-        {/* Dynamic Sidebar Section */}
         <div className={`${(category === 'GRAMMAR' && hasConjugations) ? 'lg:col-span-6' : 'lg:col-span-4'} flex flex-col gap-6 order-1 lg:order-2`}>
-          
-          {/* Conjugation Sidebar for Verb Tenses */}
           {category === 'GRAMMAR' && hasConjugations && (
             <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border-4 border-purple-100 h-full flex flex-col">
               <div className="flex items-center gap-3 mb-8">
@@ -225,19 +334,14 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Master the verb forms!</p>
                 </div>
               </div>
-
               <div className="space-y-4 flex-grow">
                 {current.conjugations!.map((conj, idx) => {
                   const style = getSubjectStyles(idx);
                   return (
-                    <div 
-                      key={idx} 
-                      className={`${style.bg} ${style.border} border-2 p-3 sm:p-4 rounded-3xl flex items-center gap-4 transition-all hover:scale-[1.02] hover:shadow-md group`}
-                    >
+                    <div key={idx} className={`${style.bg} ${style.border} border-2 p-3 sm:p-4 rounded-3xl flex items-center gap-4 transition-all hover:scale-[1.02] hover:shadow-md group`}>
                       <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-2xl flex items-center justify-center text-xl shadow-sm">
                         {style.icon}
                       </div>
-                      
                       <div className="flex-grow flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
                         <span className={`text-sm sm:text-lg font-black uppercase tracking-tighter ${style.text}`}>
                           {conj.subject}
@@ -246,11 +350,9 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
                           {conj.form}
                         </span>
                       </div>
-
                       <button 
                         onClick={() => playPronunciation(`${conj.subject} ${conj.form}`)}
                         className="bg-white hover:bg-gray-50 p-3 rounded-2xl text-xl shadow-sm border border-gray-100 group-hover:text-blue-500 transition-colors"
-                        title="Listen"
                       >
                         🔊
                       </button>
@@ -261,7 +363,6 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
             </div>
           )}
 
-          {/* Grammar Rule Sidebar for Articles/Adjectives */}
           {category === 'GRAMMAR' && !hasConjugations && (
             <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border-4 border-orange-100 h-full flex flex-col">
               <div className="flex items-center gap-3 mb-6">
@@ -277,7 +378,7 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
               </div>
               <div className="bg-orange-50 p-6 rounded-3xl border-2 border-orange-100 flex-grow">
                 <p className="text-sm font-black text-orange-400 uppercase mb-3 tracking-widest">Rule Explorer:</p>
-                <p className="text-xl font-bold text-gray-700 leading-snug">
+                <div className="text-xl font-bold text-gray-700 leading-snug">
                   {isAdjectives ? (
                     <>
                       Most adjectives change for <span className="text-pink-600 font-black">Feminine</span> items. 
@@ -289,14 +390,6 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
                       Focus on the pattern and repeat!
                     </>
                   )}
-                </p>
-                <div className="mt-6 space-y-3">
-                  <div className="flex items-center gap-2 text-sm font-bold text-gray-500">
-                    <span className="text-lg">✨</span> Dynamic content
-                  </div>
-                  <div className="flex items-center gap-2 text-sm font-bold text-gray-500">
-                    <span className="text-lg">🎯</span> Progress: {currentIndex + 1}/{items.length}
-                  </div>
                 </div>
               </div>
             </div>
