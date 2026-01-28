@@ -1,37 +1,95 @@
 
 import React, { useState, useEffect } from 'react';
-import { QuizQuestion } from '../types';
+import { QuizQuestion, Difficulty } from '../types';
 import { generateQuiz } from '../services/geminiService';
 
 interface QuizViewProps {
   subId: string;
   category: 'VOCABULARY' | 'GRAMMAR';
-  onFinish: (score: number) => void;
+  onPointEarned: (points: number) => void;
+  onFinish: (sessionTotal: number) => void;
 }
 
-const QuizView: React.FC<QuizViewProps> = ({ subId, category, onFinish }) => {
+const QuizView: React.FC<QuizViewProps> = ({ subId, category, onPointEarned, onFinish }) => {
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
-  const [score, setScore] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [sessionScore, setSessionScore] = useState(0);
+  const [loading, setLoading] = useState(false);
 
+  // We use a local state to track when we should re-fetch if needed
   useEffect(() => {
-    const fetch = async () => {
+    if (!difficulty) return;
+
+    const fetchQuestions = async () => {
       setLoading(true);
-      const data = await generateQuiz(subId, category);
-      setQuestions(data);
-      setLoading(false);
+      try {
+        // Shuffling happens in the service layer for true dynamism
+        const data = await generateQuiz(subId, category, difficulty);
+        setQuestions(data);
+      } catch (err) {
+        console.error("Failed to load quiz", err);
+      } finally {
+        setLoading(false);
+      }
     };
-    fetch();
-  }, [subId, category]);
+    fetchQuestions();
+  }, [subId, category, difficulty]);
+
+  if (!difficulty) {
+    return (
+      <div className="max-w-3xl mx-auto p-6 text-center">
+        <h2 className="text-5xl font-black text-gray-800 mb-6">Choose Your Level! 🏆</h2>
+        <p className="text-xl text-gray-500 mb-12 font-medium">Ready for a new set of questions?</p>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+          <button 
+            onClick={() => setDifficulty('easy')}
+            className="group bg-white border-4 border-green-200 hover:border-green-500 p-10 rounded-5xl transition-all hover:-translate-y-2 shadow-sm hover:shadow-2xl"
+          >
+            <div className="text-7xl mb-6 group-hover:scale-125 transition-transform">🐣</div>
+            <h3 className="text-2xl font-black text-green-600 mb-2">Débutant</h3>
+            <p className="text-gray-400 font-bold text-sm">Fresh easy words!</p>
+          </button>
+
+          <button 
+            onClick={() => setDifficulty('medium')}
+            className="group bg-white border-4 border-orange-200 hover:border-orange-500 p-10 rounded-5xl transition-all hover:-translate-y-2 shadow-sm hover:shadow-2xl"
+          >
+            <div className="text-7xl mb-6 group-hover:scale-125 transition-transform">🦊</div>
+            <h3 className="text-2xl font-black text-orange-600 mb-2">Intermédiaire</h3>
+            <p className="text-gray-400 font-bold text-sm">New challenges!</p>
+          </button>
+
+          <button 
+            onClick={() => setDifficulty('hard')}
+            className="group bg-white border-4 border-red-200 hover:border-red-500 p-10 rounded-5xl transition-all hover:-translate-y-2 shadow-sm hover:shadow-2xl"
+          >
+            <div className="text-7xl mb-6 group-hover:scale-125 transition-transform">🦁</div>
+            <h3 className="text-2xl font-black text-red-600 mb-2">Expert</h3>
+            <p className="text-gray-400 font-bold text-sm">Dynamic mastery!</p>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="animate-bounce text-6xl mb-4">🎈</div>
-        <p className="text-xl font-medium text-gray-600">Preparing your fun quiz...</p>
+        <div className="animate-bounce text-8xl mb-6">🎲</div>
+        <p className="text-2xl font-black text-gray-600">Generating <span className="text-blue-600">Dynamic</span> Questions...</p>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="text-center p-20">
+        <p className="text-3xl font-black text-gray-400 mb-8">Oops! The magic scroll is empty. 🥖</p>
+        <button onClick={() => setDifficulty(null)} className="bg-blue-600 text-white px-10 py-4 rounded-3xl font-black text-xl hover:bg-blue-700 shadow-xl">Try Again!</button>
       </div>
     );
   }
@@ -43,7 +101,13 @@ const QuizView: React.FC<QuizViewProps> = ({ subId, category, onFinish }) => {
     setSelectedOption(option);
     const correct = option === current.correctAnswer;
     setIsCorrect(correct);
-    if (correct) setScore(s => s + 20);
+    
+    if (correct) {
+      const pointsMap = { easy: 10, medium: 20, hard: 35 };
+      const earned = pointsMap[difficulty] || 10;
+      setSessionScore(s => s + earned);
+      onPointEarned(earned);
+    }
   };
 
   const handleNext = () => {
@@ -52,48 +116,68 @@ const QuizView: React.FC<QuizViewProps> = ({ subId, category, onFinish }) => {
       setSelectedOption(null);
       setIsCorrect(null);
     } else {
-      onFinish(score);
+      onFinish(sessionScore);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-gray-800">Quiz Time! 🚀</h2>
-        <p className="text-gray-500">Show what you've learned</p>
+    <div className="max-w-3xl mx-auto p-6">
+      <div className="flex items-center justify-between mb-8 px-4">
+        <div>
+          <h2 className="text-4xl font-black text-gray-800 tracking-tight">Level: {difficulty.toUpperCase()} 🚀</h2>
+          <p className="text-gray-500 font-black uppercase tracking-widest text-sm mt-1">Question {currentIndex + 1} of {questions.length}</p>
+        </div>
+        <div className="bg-yellow-400 text-white px-6 py-3 rounded-3xl font-black text-2xl shadow-lg border-4 border-white transform rotate-3 flex items-center gap-2">
+          <span>⭐</span> <span>Session: {sessionScore}</span>
+        </div>
       </div>
 
-      <div className="bg-white rounded-3xl p-8 shadow-xl border-4 border-purple-100">
-        <h3 className="text-2xl font-bold text-gray-700 mb-8">{current.question}</h3>
+      <div className="bg-white rounded-[3rem] p-8 sm:p-12 shadow-2xl border-4 border-purple-100 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-purple-50 rounded-full -mr-24 -mt-24 opacity-50 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-50 rounded-full -ml-16 -mb-16 opacity-50 pointer-events-none"></div>
         
-        <div className="space-y-4">
+        <h3 className="text-3xl font-black text-gray-800 mb-12 relative z-10 leading-tight">
+          {current.question}
+        </h3>
+        
+        <div className="grid grid-cols-1 gap-5 relative z-10">
           {current.options.map((opt, idx) => (
             <button
               key={idx}
               onClick={() => handleOptionClick(opt)}
               disabled={selectedOption !== null}
-              className={`w-full text-left p-6 rounded-2xl text-xl font-bold transition-all border-b-4 active:border-b-0
-                ${selectedOption === null ? 'bg-gray-50 border-gray-200 hover:bg-blue-50 hover:border-blue-400' : ''}
-                ${selectedOption === opt && isCorrect === true ? 'bg-green-100 border-green-500 text-green-700' : ''}
-                ${selectedOption === opt && isCorrect === false ? 'bg-red-100 border-red-500 text-red-700' : ''}
-                ${selectedOption !== opt && opt === current.correctAnswer && selectedOption !== null ? 'bg-green-100 border-green-500 text-green-700' : ''}
-                ${selectedOption !== null && selectedOption !== opt && opt !== current.correctAnswer ? 'opacity-50 grayscale bg-gray-100' : ''}
+              className={`w-full text-left p-6 rounded-3xl text-xl font-bold transition-all border-b-8 active:border-b-0 text-black
+                ${selectedOption === null ? 'bg-gray-50 border-gray-200 hover:bg-blue-50 hover:border-blue-400 hover:-translate-y-1' : ''}
+                ${selectedOption === opt && isCorrect === true ? 'bg-green-100 border-green-500 !text-green-800 scale-[1.02]' : ''}
+                ${selectedOption === opt && isCorrect === false ? 'bg-red-100 border-red-500 !text-red-800' : ''}
+                ${selectedOption !== opt && opt === current.correctAnswer && selectedOption !== null ? 'bg-green-50 border-green-500 !text-green-800' : ''}
+                ${selectedOption !== null && selectedOption !== opt && opt !== current.correctAnswer ? 'opacity-30 grayscale bg-gray-100' : ''}
               `}
             >
-              {opt}
+              <div className="flex items-center justify-between">
+                <span>{opt}</span>
+                {selectedOption === opt && (
+                  <span className="text-3xl">{isCorrect ? '✅' : '❌'}</span>
+                )}
+                {selectedOption !== null && opt === current.correctAnswer && selectedOption !== opt && (
+                  <span className="text-3xl animate-bounce">🌟</span>
+                )}
+              </div>
             </button>
           ))}
         </div>
 
         {selectedOption && (
-          <div className={`mt-8 p-6 rounded-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 ${isCorrect ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-            <p className="font-black text-xl mb-2">{isCorrect ? 'BRAVO! 🎉' : 'Oups! Almost there! 💡'}</p>
-            <p className="font-medium">{current.explanation}</p>
+          <div className={`mt-12 p-10 rounded-[2.5rem] animate-in fade-in slide-in-from-bottom-6 duration-700 shadow-inner ${isCorrect ? 'bg-green-50 border-4 border-green-100 text-green-800' : 'bg-red-50 border-4 border-red-100 text-red-800'}`}>
+            <p className="font-black text-3xl mb-3 flex items-center gap-3">
+              {isCorrect ? 'MAGNIFIQUE! 🎉' : 'Oups! 💡'}
+            </p>
+            <p className="text-xl font-bold opacity-90 mb-8 leading-relaxed">{current.explanation}</p>
             <button 
               onClick={handleNext}
-              className="mt-6 w-full bg-purple-600 text-white py-4 rounded-xl font-bold text-xl shadow-md hover:bg-purple-700 transition-colors"
+              className="w-full bg-purple-600 text-white py-6 rounded-3xl font-black text-2xl shadow-2xl hover:bg-purple-700 transition-all hover:scale-[1.03] active:scale-95 border-b-8 border-purple-800"
             >
-              {currentIndex === questions.length - 1 ? 'Finish!' : 'Next Question ➜'}
+              {currentIndex === questions.length - 1 ? 'Finish Adventure! 🏁' : 'Next Question ➜'}
             </button>
           </div>
         )}

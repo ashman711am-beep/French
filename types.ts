@@ -1,8 +1,9 @@
-
 export enum CategoryType {
   VOCABULARY = 'VOCABULARY',
   GRAMMAR = 'GRAMMAR'
 }
+
+export type Difficulty = 'easy' | 'medium' | 'hard';
 
 export interface SubCategory {
   id: string;
@@ -17,7 +18,7 @@ export interface WordItem {
   english: string;
   example: string;
   exampleEnglish: string;
-  pronunciation?: string;
+  imageUrl?: string;
 }
 
 export interface QuizQuestion {
@@ -27,15 +28,11 @@ export interface QuizQuestion {
   explanation: string;
 }
 
-export interface UserProgress {
-  stars: number;
-  completedLessons: string[];
-  dailyScores: { date: string; score: number }[];
-}
-
 export interface HistoryItem {
   date: string;
   category: string;
   subcategory: string;
   score: number;
 }
+
+export type ViewMode = 'choice' | 'learning' | 'quiz';
