@@ -6,7 +6,47 @@ import { WordItem, QuizQuestion, Difficulty, HistoryItem } from '../types';
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const STORAGE_KEY_PREFIX = 'petits_content_';
-const IMAGE_CACHE_PREFIX = 'petits_img_';
+const DB_NAME = 'PetitFrancaisImages';
+const STORE_NAME = 'illustrations';
+
+/**
+ * IndexedDB Wrapper for large image storage
+ */
+const openDB = (): Promise<IDBDatabase> => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+export const getStoredImage = async (word: string): Promise<string | null> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readonly');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.get(word);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+export const saveStoredImage = async (word: string, base64: string): Promise<void> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.put(base64, word);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+};
 
 function decode(base64: string) {
   const binaryString = atob(base64);
@@ -40,19 +80,6 @@ async function decodeAudioData(
 export const getStoredContent = (subId: string): WordItem[] => {
   const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${subId}`);
   return stored ? JSON.parse(stored) : [];
-};
-
-export const getStoredImage = (word: string): string | null => {
-  return localStorage.getItem(`${IMAGE_CACHE_PREFIX}${word}`);
-};
-
-export const saveStoredImage = (word: string, base64: string): void => {
-  try {
-    localStorage.setItem(`${IMAGE_CACHE_PREFIX}${word}`, base64);
-  } catch (e) {
-    console.warn("Storage full, could not save image", e);
-    // Clear some space if needed in a real app, here we just fail gracefully
-  }
 };
 
 export const seedContent = async (subcategory: string, type: string, extraParam?: string): Promise<WordItem[]> => {

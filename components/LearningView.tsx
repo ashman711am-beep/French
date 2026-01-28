@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WordItem } from '../types';
 import { seedContent, playPronunciation, getStoredContent, generateEducationalImage, getStoredImage, saveStoredImage } from '../services/geminiService';
 
@@ -39,9 +39,12 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
   const [generatingImage, setGeneratingImage] = useState(false);
   const [customImages, setCustomImages] = useState<Record<string, string>>({});
   const [needsApiKey, setNeedsApiKey] = useState(false);
+  const [preparingAll, setPreparingAll] = useState(false);
+  const [prepProgress, setPrepProgress] = useState({ current: 0, total: 0 });
 
   const isArticles = subId === 'articles';
   const isAdjectives = subId === 'adjectives';
+  const stopPrepRef = useRef(false);
 
   // Load word items once and persist
   useEffect(() => {
@@ -64,12 +67,11 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
     loadData();
   }, [subId, category, selectedSubTopic, isArticles, isAdjectives]);
 
-  const handleGenerateImage = useCallback(async (force = false) => {
-    const current = items[currentIndex];
+  const handleGenerateImage = useCallback(async (index: number, force = false) => {
+    const current = items[index];
     if (!current) return;
 
-    // Check cache first if not forcing refresh
-    const cached = getStoredImage(current.french);
+    const cached = await getStoredImage(current.french);
     if (cached && !force) {
       setCustomImages(prev => ({ ...prev, [current.french]: cached }));
       return;
@@ -83,10 +85,11 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
       }
       
       setNeedsApiKey(false);
-      setGeneratingImage(true);
+      if (index === currentIndex) setGeneratingImage(true);
+      
       const result = await generateEducationalImage(current.french, current.english);
       if (result) {
-        saveStoredImage(current.french, result);
+        await saveStoredImage(current.french, result);
         setCustomImages(prev => ({ ...prev, [current.french]: result }));
       }
     } catch (error: any) {
@@ -94,22 +97,57 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
         setNeedsApiKey(true);
       }
     } finally {
-      setGeneratingImage(false);
+      if (index === currentIndex) setGeneratingImage(false);
     }
   }, [items, currentIndex]);
 
-  // Automatic Image Management Effect
+  // "Pre-Prepare All" Batch Logic
+  const handlePrepareAll = async () => {
+    if (items.length === 0 || preparingAll) return;
+    
+    const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+    if (!hasKey) {
+      await (window as any).aistudio.openSelectKey();
+      const retryKey = await (window as any).aistudio.hasSelectedApiKey();
+      if (!retryKey) return;
+    }
+
+    setPreparingAll(true);
+    stopPrepRef.current = false;
+    let count = 0;
+    
+    for (let i = 0; i < items.length; i++) {
+      if (stopPrepRef.current) break;
+      const cached = await getStoredImage(items[i].french);
+      if (!cached) {
+        setPrepProgress({ current: i + 1, total: items.length });
+        await handleGenerateImage(i);
+        // Small delay to avoid hammering the API too hard in one burst
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+    
+    setPreparingAll(false);
+  };
+
+  // Automatic Image Management Effect (Load Current + Pre-load Next)
   useEffect(() => {
     if (items.length > 0 && !loading) {
       const current = items[currentIndex];
-      const cached = getStoredImage(current.french);
-      
-      if (cached) {
-        // Instant load from cache
-        setCustomImages(prev => ({ ...prev, [current.french]: cached }));
-      } else {
-        // Trigger generation if not cached
-        handleGenerateImage();
+      getStoredImage(current.french).then(cached => {
+        if (cached) {
+          setCustomImages(prev => ({ ...prev, [current.french]: cached }));
+        } else {
+          handleGenerateImage(currentIndex);
+        }
+      });
+
+      // Background pre-load next item
+      if (currentIndex + 1 < items.length) {
+        const next = items[currentIndex + 1];
+        getStoredImage(next.french).then(cached => {
+          if (!cached) handleGenerateImage(currentIndex + 1);
+        });
       }
     }
   }, [currentIndex, items, loading, handleGenerateImage]);
@@ -117,7 +155,7 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
   const handleOpenKeySelector = async () => {
     await (window as any).aistudio.openSelectKey();
     setNeedsApiKey(false);
-    handleGenerateImage();
+    handleGenerateImage(currentIndex);
   };
 
   if ((isArticles || isAdjectives) && !selectedSubTopic) {
@@ -178,9 +216,7 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
   const progressPercent = ((currentIndex + 1) / items.length) * 100;
   const hasConjugations = current.conjugations && current.conjugations.length > 0;
   
-  // Source resolution: Custom State (reactive) -> Cache (persistent) -> Fallback
-  const displayImage = customImages[current.french] || getStoredImage(current.french) || `https://picsum.photos/seed/${current?.french || 'default'}/800/600`;
-  const isFromCache = !!getStoredImage(current.french);
+  const displayImage = customImages[current.french] || `https://picsum.photos/seed/${current?.french || 'default'}/800/600`;
 
   const getSubjectStyles = (idx: number) => {
     const styles = [
@@ -196,14 +232,32 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-8 animate-in slide-in-from-right-10 duration-500">
-      {(isArticles || isAdjectives) && (
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        {(isArticles || isAdjectives) ? (
+          <button 
+            onClick={() => { stopPrepRef.current = true; setSelectedSubTopic(null); }}
+            className="flex items-center gap-2 text-blue-500 font-black hover:underline group"
+          >
+            <span className="group-hover:-translate-x-1 transition-transform">🏘️</span> Back to {isArticles ? 'Article' : 'Adjective'} Windows
+          </button>
+        ) : <div />}
+
         <button 
-          onClick={() => setSelectedSubTopic(null)}
-          className="mb-6 flex items-center gap-2 text-blue-500 font-black hover:underline group"
+          onClick={handlePrepareAll}
+          disabled={preparingAll}
+          className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm transition-all shadow-md ${preparingAll ? 'bg-orange-100 text-orange-600 border-2 border-orange-200' : 'bg-white text-blue-600 border-2 border-blue-100 hover:border-blue-400'}`}
         >
-          <span className="group-hover:-translate-x-1 transition-transform">🏘️</span> Back to {isArticles ? 'Article' : 'Adjective'} Windows
+          {preparingAll ? (
+            <>
+              <span className="animate-spin">🌀</span> Preparing Illustration {prepProgress.current}/{prepProgress.total}...
+            </>
+          ) : (
+            <>
+              <span>🪄</span> Prepare All Illustrations
+            </>
+          )}
         </button>
-      )}
+      </div>
 
       <div className="mb-10 relative">
         <div className="flex items-center justify-between mb-3 px-2">
@@ -228,27 +282,19 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
                   <div className="text-5xl animate-bounce mb-4">🪄</div>
                   <p className="text-blue-600 font-black text-center px-4">Creating your educational illustration...</p>
                 </div>
-              ) : needsApiKey && !isFromCache ? (
+              ) : needsApiKey ? (
                 <div className="absolute inset-0 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center z-10 p-6 text-center">
                   <div className="text-5xl mb-4">🖼️</div>
-                  <h4 className="text-xl font-black text-gray-800 mb-2">Unlock HD Illustrations</h4>
-                  <p className="text-sm text-gray-500 mb-4 font-medium">Connect your API key to see high-quality images automatically!</p>
+                  <h4 className="text-xl font-black text-gray-800 mb-2">Unlock Illustrations</h4>
                   <button 
                     onClick={handleOpenKeySelector}
                     className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black shadow-lg hover:bg-blue-700 transition-all"
                   >
                     Connect AI Illustrator
                   </button>
-                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-[10px] mt-4 text-blue-400 font-bold hover:underline">Requires Paid Project API Key</a>
                 </div>
               ) : null}
               
-              {isFromCache && (
-                <div className="absolute top-4 left-4 z-20 bg-green-500/90 text-white text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1 shadow-lg">
-                  <span>💾</span> SAVED
-                </div>
-              )}
-
               <img 
                 src={displayImage} 
                 alt={current?.french || 'French word'}
@@ -257,11 +303,11 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
               <div className="absolute top-4 right-4 flex flex-col gap-2">
                 <div className="bg-white/90 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-white/50 flex flex-col gap-2">
                   <button 
-                    onClick={() => handleGenerateImage(true)}
+                    onClick={() => handleGenerateImage(currentIndex, true)}
                     disabled={generatingImage}
                     className="bg-blue-600 text-white p-3 px-5 rounded-xl font-black text-xs hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 group/btn"
                   >
-                    <span className="group-hover/btn:rotate-12 transition-transform">🎨</span> {isFromCache ? 'Redraw Illustration' : 'AI Illustrator'}
+                    <span className="group-hover/btn:rotate-12 transition-transform">🎨</span> Redraw Illustration
                   </button>
                 </div>
               </div>
@@ -397,14 +443,21 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
 
       <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4">
         <button 
-          onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
+          onClick={() => { stopPrepRef.current = true; setCurrentIndex(i => Math.max(0, i - 1)); }}
           disabled={currentIndex === 0}
           className="w-full sm:w-auto px-8 py-5 rounded-3xl font-black text-xl bg-white text-gray-400 border-4 border-gray-100 disabled:opacity-50 hover:bg-gray-50"
         >
           ← Back
         </button>
         <button 
-          onClick={() => currentIndex === items.length - 1 ? ((isArticles || isAdjectives) ? setSelectedSubTopic(null) : onComplete()) : setCurrentIndex(i => i + 1)}
+          onClick={() => { 
+            stopPrepRef.current = true;
+            if (currentIndex === items.length - 1) {
+              (isArticles || isAdjectives) ? setSelectedSubTopic(null) : onComplete();
+            } else {
+              setCurrentIndex(i => i + 1);
+            }
+          }}
           className="w-full sm:flex-1 bg-blue-600 text-white py-6 rounded-3xl font-black text-2xl shadow-2xl hover:bg-blue-700 transition-transform active:scale-95 border-b-8 border-blue-800"
         >
           {currentIndex === items.length - 1 ? "Finish Window! 🏁" : "Next Discovery ➜"}
