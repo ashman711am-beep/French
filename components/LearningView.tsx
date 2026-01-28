@@ -37,7 +37,6 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
   
   // AI Image States
   const [generatingImage, setGeneratingImage] = useState(false);
-  const [imageSize, setImageSize] = useState<"1K" | "2K" | "4K">("1K");
   const [customImages, setCustomImages] = useState<Record<string, string>>({});
   const [needsApiKey, setNeedsApiKey] = useState(false);
 
@@ -85,7 +84,7 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
       
       setNeedsApiKey(false);
       setGeneratingImage(true);
-      const result = await generateEducationalImage(current.french, current.english, imageSize);
+      const result = await generateEducationalImage(current.french, current.english);
       if (result) {
         saveStoredImage(current.french, result);
         setCustomImages(prev => ({ ...prev, [current.french]: result }));
@@ -97,7 +96,7 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
     } finally {
       setGeneratingImage(false);
     }
-  }, [items, currentIndex, imageSize]);
+  }, [items, currentIndex]);
 
   // Automatic Image Management Effect
   useEffect(() => {
@@ -227,7 +226,7 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
               {generatingImage ? (
                 <div className="absolute inset-0 bg-blue-50/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 animate-in fade-in">
                   <div className="text-5xl animate-bounce mb-4">🪄</div>
-                  <p className="text-blue-600 font-black text-center px-4">Creating your educational illustration ({imageSize})...</p>
+                  <p className="text-blue-600 font-black text-center px-4">Creating your educational illustration...</p>
                 </div>
               ) : needsApiKey && !isFromCache ? (
                 <div className="absolute inset-0 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center z-10 p-6 text-center">
@@ -257,22 +256,10 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
               />
               <div className="absolute top-4 right-4 flex flex-col gap-2">
                 <div className="bg-white/90 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-white/50 flex flex-col gap-2">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center px-2">Resolution</p>
-                  <div className="flex gap-1">
-                    {["1K", "2K", "4K"].map((size) => (
-                      <button
-                        key={size}
-                        onClick={() => setImageSize(size as any)}
-                        className={`px-3 py-1 rounded-xl text-xs font-black transition-all ${imageSize === size ? 'bg-blue-600 text-white shadow-md scale-110' : 'bg-gray-100 text-gray-500 hover:bg-blue-100'}`}
-                      >
-                        {size}
-                      </button>
-                    ))}
-                  </div>
                   <button 
                     onClick={() => handleGenerateImage(true)}
                     disabled={generatingImage}
-                    className="mt-2 bg-blue-600 text-white p-3 rounded-xl font-black text-xs hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 group/btn"
+                    className="bg-blue-600 text-white p-3 px-5 rounded-xl font-black text-xs hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 group/btn"
                   >
                     <span className="group-hover/btn:rotate-12 transition-transform">🎨</span> {isFromCache ? 'Redraw Illustration' : 'AI Illustrator'}
                   </button>

@@ -166,7 +166,7 @@ export const seedContent = async (subcategory: string, type: string, extraParam?
   }
 };
 
-export const generateEducationalImage = async (word: string, meaning: string, size: "1K" | "2K" | "4K"): Promise<string | null> => {
+export const generateEducationalImage = async (word: string, meaning: string): Promise<string | null> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `A clear, high-quality educational illustration for children explaining the French word "${word}" which means "${meaning}". The illustration should be simple, bright, and clearly depict the object or concept to help a child learn and remember the word. Avoid text in the image. Professional storybook style.`;
 
@@ -179,7 +179,7 @@ export const generateEducationalImage = async (word: string, meaning: string, si
       config: {
         imageConfig: {
           aspectRatio: "1:1",
-          imageSize: size
+          imageSize: "1K"
         }
       },
     });
