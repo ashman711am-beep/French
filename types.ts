@@ -1,3 +1,4 @@
+
 export enum CategoryType {
   VOCABULARY = 'VOCABULARY',
   GRAMMAR = 'GRAMMAR'
@@ -19,6 +20,7 @@ export interface WordItem {
   example: string;
   exampleEnglish: string;
   imageUrl?: string;
+  conjugations?: { subject: string; form: string }[];
 }
 
 export interface QuizQuestion {
@@ -33,6 +35,7 @@ export interface HistoryItem {
   category: string;
   subcategory: string;
   score: number;
+  powerRating?: number;
 }
 
 export type ViewMode = 'choice' | 'learning' | 'quiz';

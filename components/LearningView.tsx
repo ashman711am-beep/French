@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { WordItem } from '../types';
-import { seedContent, playPronunciation, getStoredContent, getFunFact, generateMagicImage } from '../services/geminiService';
+import { seedContent, playPronunciation, getStoredContent, getWordInsight } from '../services/geminiService';
 
 interface LearningViewProps {
   subId: string;
@@ -13,12 +13,8 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
   const [items, setItems] = useState<WordItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [funFact, setFunFact] = useState<{ text: string, sources: any[] } | null>(null);
-  const [factLoading, setFactLoading] = useState(false);
-  
-  const [generatedImg, setGeneratedImg] = useState<string | null>(null);
-  const [imgLoading, setImgLoading] = useState(false);
-  const [imgSize, setImgSize] = useState<'1K' | '2K' | '4K'>('1K');
+  const [insight, setInsight] = useState<{ text: string, sources: string[] } | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -34,38 +30,15 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
   }, [subId, category]);
 
   useEffect(() => {
-    setFunFact(null);
-    setGeneratedImg(null);
+    setInsight(null);
   }, [currentIndex]);
 
-  const fetchFact = async () => {
-    setFactLoading(true);
-    const fact = await getFunFact(items[currentIndex].french);
-    setFunFact(fact);
-    setFactLoading(false);
-  };
-
-  const createMagicImg = async () => {
-    // @ts-ignore
-    const hasKey = await window.aistudio.hasSelectedApiKey();
-    if (!hasKey) {
-      // @ts-ignore
-      await window.aistudio.openSelectKey();
-      // Proceeding assuming selection was okay
-    }
-
-    setImgLoading(true);
-    try {
-      const url = await generateMagicImage(items[currentIndex].french, imgSize);
-      setGeneratedImg(url);
-    } catch (err: any) {
-      if (err.message === 'KEY_RESET') {
-        // @ts-ignore
-        await window.aistudio.openSelectKey();
-      }
-    } finally {
-      setImgLoading(false);
-    }
+  const fetchInsight = async () => {
+    if (!items[currentIndex]) return;
+    setInsightLoading(true);
+    const result = await getWordInsight(items[currentIndex].french);
+    setInsight(result);
+    setInsightLoading(false);
   };
 
   if (loading) {
@@ -77,11 +50,20 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
     );
   }
 
+  if (items.length === 0) {
+    return (
+      <div className="text-center p-20">
+        <p className="text-3xl font-black text-gray-400 mb-8">Oh no! We couldn't find any words for this category. 🥖</p>
+        <button onClick={onComplete} className="bg-blue-600 text-white px-10 py-4 rounded-3xl font-black text-xl hover:bg-blue-700 shadow-xl">Back to Options</button>
+      </div>
+    );
+  }
+
   const current = items[currentIndex];
   const progressPercent = ((currentIndex + 1) / items.length) * 100;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-8">
+    <div className="max-w-6xl mx-auto p-4 sm:p-8">
       {/* Progress Section */}
       <div className="mb-10 relative">
         <div className="flex items-center justify-between mb-3 px-2">
@@ -99,96 +81,121 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Main Card */}
-        <div className="lg:col-span-7 bg-white rounded-5xl p-8 shadow-2xl border-4 border-blue-100 flex flex-col items-center">
-          <div className="w-full mb-8 rounded-3xl overflow-hidden border-4 border-blue-50 shadow-md aspect-video relative">
-            <img 
-              src={generatedImg || current.imageUrl || `https://picsum.photos/seed/${current.french}/800/600`} 
-              alt={current.french}
-              className={`w-full h-full object-cover transition-opacity duration-500 ${imgLoading ? 'opacity-30' : 'opacity-100'}`}
-            />
-            {imgLoading && (
-              <div className="absolute inset-0 flex flex-center flex-col items-center justify-center bg-white/50 backdrop-blur-sm">
-                <div className="animate-spin text-5xl mb-2">🎨</div>
-                <p className="font-black text-blue-600">Painting your {imgSize} masterpiece...</p>
-              </div>
-            )}
-          </div>
+        <div className={`${category === 'GRAMMAR' ? 'lg:col-span-6' : 'lg:col-span-8'} flex flex-col items-center order-2 lg:order-1`}>
+          <div className="w-full bg-white rounded-5xl p-8 shadow-2xl border-4 border-blue-100 flex flex-col items-center">
+            <div className="w-full mb-8 rounded-3xl overflow-hidden border-4 border-blue-50 shadow-md aspect-video relative">
+              <img 
+                src={current?.imageUrl || `https://picsum.photos/seed/${current?.french || 'default'}/800/600`} 
+                alt={current?.french || 'French word'}
+                className="w-full h-full object-cover"
+              />
+            </div>
 
-          <h2 className="text-6xl font-black text-gray-800 mb-2 capitalize tracking-tighter">{current.french}</h2>
-          <p className="text-2xl font-bold text-blue-400 mb-8 uppercase tracking-widest">{current.english}</p>
-          
-          <button 
-            onClick={() => playPronunciation(current.french)}
-            className="bg-blue-600 text-white px-8 py-4 rounded-3xl font-bold text-xl shadow-lg hover:bg-blue-700 transition-transform hover:scale-105 mb-8 flex items-center gap-2"
-          >
-            <span>🔊</span> Listen
-          </button>
+            <h2 className="text-6xl font-black text-gray-800 mb-2 capitalize tracking-tighter">{current?.french}</h2>
+            <p className="text-2xl font-bold text-blue-400 mb-8 uppercase tracking-widest">{current?.english}</p>
+            
+            <button 
+              onClick={() => playPronunciation(current?.french)}
+              className="bg-blue-600 text-white px-8 py-4 rounded-3xl font-bold text-xl shadow-lg hover:bg-blue-700 transition-transform hover:scale-105 mb-8 flex items-center gap-2"
+            >
+              <span>🔊</span> Listen
+            </button>
 
-          <div className="w-full bg-blue-50 rounded-3xl p-6 border-2 border-blue-100">
-            <p className="text-sm font-black text-blue-400 uppercase mb-2">In a sentence:</p>
-            <p className="text-2xl font-bold text-gray-800 leading-tight mb-2">{current.example}</p>
-            <p className="text-lg text-gray-500">{current.exampleEnglish}</p>
+            <div className="w-full bg-blue-50 rounded-3xl p-6 border-2 border-blue-100">
+              <p className="text-sm font-black text-blue-400 uppercase mb-2">In a sentence:</p>
+              <p className="text-2xl font-bold text-gray-800 leading-tight mb-2">{current?.example}</p>
+              <p className="text-lg text-gray-500">{current?.exampleEnglish}</p>
+            </div>
           </div>
         </div>
 
-        {/* Sidebar Generators */}
-        <div className="lg:col-span-5 space-y-6">
-          {/* Magic Image Generator */}
-          <div className="bg-white rounded-4xl p-6 shadow-xl border-4 border-purple-100">
-            <h4 className="text-xl font-black text-purple-600 mb-4 flex items-center gap-2">
-              <span>🪄</span> Magic Creator
-            </h4>
-            <div className="flex gap-2 mb-4">
-              {['1K', '2K', '4K'].map(s => (
-                <button 
-                  key={s} 
-                  onClick={() => setImgSize(s as any)}
-                  className={`flex-1 py-2 rounded-xl font-black border-2 transition-all ${imgSize === s ? 'bg-purple-600 border-purple-600 text-white shadow-lg' : 'border-gray-100 text-gray-400 hover:border-purple-200'}`}
-                >
-                  {s}
-                </button>
-              ))}
+        {/* Dynamic Sidebar Section */}
+        <div className={`${category === 'GRAMMAR' ? 'lg:col-span-6' : 'lg:col-span-4'} flex flex-col gap-6 order-1 lg:order-2`}>
+          
+          {/* Conjugation Sidebar for Grammar */}
+          {category === 'GRAMMAR' && current.conjugations && (
+            <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border-4 border-purple-100">
+              <div className="flex items-center gap-3 mb-6">
+                <span className="text-3xl">🧩</span>
+                <h3 className="text-2xl font-black text-purple-600">Conjugation Table</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                {current.conjugations.map((conj, idx) => (
+                  <div key={idx} className="flex items-center justify-between bg-purple-50 p-4 rounded-2xl border border-purple-100 hover:bg-white transition-colors">
+                    <span className={`text-lg font-black uppercase tracking-tighter ${
+                      idx === 0 ? 'text-blue-500' : 
+                      idx === 1 ? 'text-green-500' : 
+                      idx === 2 ? 'text-red-500' : 
+                      idx === 3 ? 'text-orange-500' : 
+                      idx === 4 ? 'text-pink-500' : 'text-indigo-500'
+                    }`}>
+                      {conj.subject}
+                    </span>
+                    <span className="text-xl font-bold text-gray-800 tracking-tight">
+                      {conj.form}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <button 
-              onClick={createMagicImg}
-              disabled={imgLoading}
-              className="w-full bg-purple-500 text-white py-4 rounded-2xl font-black text-lg shadow-md hover:bg-purple-600 disabled:opacity-50 transition-all active:scale-95"
-            >
-              Generate Image! ✨
-            </button>
-            <p className="text-[10px] text-gray-400 mt-2 text-center uppercase font-bold">Requires Paid Gemini API Key</p>
-          </div>
+          )}
 
-          {/* Fun Fact Generator */}
-          <div className="bg-white rounded-4xl p-6 shadow-xl border-4 border-green-100">
-            <h4 className="text-xl font-black text-green-600 mb-4 flex items-center gap-2">
-              <span>💡</span> Fun Fact Finder
-            </h4>
-            {factLoading ? (
-              <div className="py-8 text-center animate-pulse text-green-600 font-bold">Searching Google... 🔍</div>
-            ) : funFact ? (
-              <div className="animate-in fade-in slide-in-from-bottom-2">
-                <p className="text-gray-700 font-bold mb-4 leading-relaxed">{funFact.text}</p>
-                {funFact.sources.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black text-gray-400 uppercase">Sources</p>
-                    {funFact.sources.map((s, idx) => (
-                      <a key={idx} href={s.uri} target="_blank" rel="noreferrer" className="block text-xs text-blue-500 hover:underline truncate">
-                        🔗 {s.title}
-                      </a>
-                    ))}
+          {/* Smart Insight (Shown in both, or as secondary in Grammar) */}
+          <div className={`bg-white rounded-[2.5rem] p-6 shadow-xl border-4 border-orange-100 ${category === 'GRAMMAR' ? 'flex-shrink-0' : 'flex-1'}`}>
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-3xl">🔍</span>
+              <h3 className="text-xl font-black text-gray-800">Smart Insight</h3>
+            </div>
+            
+            {insightLoading ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="animate-spin text-3xl mb-3">📡</div>
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Searching Google...</p>
+              </div>
+            ) : insight ? (
+              <div className="animate-in fade-in slide-in-from-bottom-4">
+                <p className="text-gray-700 font-medium leading-relaxed mb-6 italic">
+                  "{insight.text}"
+                </p>
+                {insight.sources.length > 0 && (
+                  <div className="pt-4 border-t border-gray-100">
+                    <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Sources from the web:</p>
+                    <div className="flex flex-col gap-1">
+                      {insight.sources.slice(0, 3).map((url, i) => (
+                        <a 
+                          key={i} 
+                          href={url} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="text-[10px] text-blue-500 hover:underline truncate"
+                        >
+                          🔗 {url}
+                        </a>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
             ) : (
-              <button 
-                onClick={fetchFact}
-                className="w-full bg-green-500 text-white py-4 rounded-2xl font-black text-lg shadow-md hover:bg-green-600 transition-all active:scale-95"
-              >
-                Find Cool Fact! 🌍
-              </button>
+              <div className="text-center py-6">
+                <p className="text-gray-400 font-bold text-sm mb-6 leading-tight">Want to know more about this word?</p>
+                <button 
+                  onClick={fetchInsight}
+                  className="bg-orange-500 text-white px-6 py-3 rounded-2xl font-black shadow-lg hover:bg-orange-600 transition-all hover:scale-105 active:scale-95"
+                >
+                  Discover More!
+                </button>
+              </div>
             )}
           </div>
+
+          {!category || category === 'VOCABULARY' ? (
+            <div className="bg-blue-600 text-white p-6 rounded-[2.5rem] shadow-xl text-center">
+               <div className="text-4xl mb-2">⭐</div>
+               <p className="font-black">Keep going!</p>
+               <p className="text-xs font-bold opacity-80 uppercase">You're becoming a pro!</p>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -209,7 +216,7 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
       </div>
       
       <div className="mt-8 text-center font-bold text-gray-400">
-        Discovering the Top 100 French Secrets...
+        {category === 'GRAMMAR' ? "Mastering the 50 Most Common Verbs!" : "Powered by Smart AI Discovery"}
       </div>
     </div>
   );

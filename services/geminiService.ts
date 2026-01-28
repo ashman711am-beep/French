@@ -2,7 +2,7 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { WordItem, QuizQuestion, Difficulty, HistoryItem } from '../types';
 
-// Helper to get a fresh AI instance (useful for key selection flow)
+// Helper to get a fresh AI instance
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const STORAGE_KEY_PREFIX = 'petits_content_';
@@ -43,16 +43,30 @@ export const getStoredContent = (subId: string): WordItem[] => {
 
 export const seedContent = async (subcategory: string, type: string): Promise<WordItem[]> => {
   const existing = getStoredContent(subcategory);
-  if (existing.length >= 100) return existing;
+  // If it's grammar, we want more items (50 verbs), but we'll seed in batches or check for higher count
+  const limit = type === 'GRAMMAR' ? 50 : 20;
+  if (existing.length >= limit) return existing;
 
   const ai = getAI();
-  const prompt = `Generate exactly 20 frequently used French ${type.toLowerCase()} items for the subcategory "${subcategory}". 
+  
+  const grammarPrompt = `Generate a list of the 50 most used French verbs in the ${subcategory} tense. 
+  For each verb, provide:
+  1. The infinitive (french)
+  2. English translation (english)
+  3. A simple kid-friendly example sentence (example)
+  4. English translation of the example (exampleEnglish)
+  5. The full conjugation for all 6 subjects: Je, Tu, Il/Elle/On, Nous, Vous, Ils/Elles.
+  Format: JSON array of objects {french, english, example, exampleEnglish, conjugations: [{subject, form}]}.`;
+
+  const vocabPrompt = `Generate exactly 20 frequently used French ${type.toLowerCase()} items for the subcategory "${subcategory}". 
   Focus on common objects/concepts for children.
   Format: JSON array of objects {french, english, example, exampleEnglish}.`;
 
+  const prompt = type === 'GRAMMAR' ? grammarPrompt : vocabPrompt;
+
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-lite-latest', // Fast response
+      model: 'gemini-flash-lite-latest',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -65,6 +79,17 @@ export const seedContent = async (subcategory: string, type: string): Promise<Wo
               english: { type: Type.STRING },
               example: { type: Type.STRING },
               exampleEnglish: { type: Type.STRING },
+              conjugations: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    subject: { type: Type.STRING },
+                    form: { type: Type.STRING }
+                  },
+                  required: ["subject", "form"]
+                }
+              }
             },
             required: ["french", "english", "example", "exampleEnglish"]
           }
@@ -72,7 +97,7 @@ export const seedContent = async (subcategory: string, type: string): Promise<Wo
       }
     });
 
-    const newItems: WordItem[] = JSON.parse(response.text);
+    const newItems: WordItem[] = JSON.parse(response.text || "[]");
     const updated = [...existing, ...newItems].slice(0, 100);
     localStorage.setItem(`${STORAGE_KEY_PREFIX}${subcategory}`, JSON.stringify(updated));
     return updated;
@@ -82,13 +107,37 @@ export const seedContent = async (subcategory: string, type: string): Promise<Wo
   }
 };
 
+export const getWordInsight = async (word: string) => {
+  const ai = getAI();
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Provide an interesting, kid-friendly cultural fact or an up-to-date usage example for the French word "${word}". Use Google Search to ensure the information is accurate and current.`,
+      config: {
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    const urls = response.candidates?.[0]?.groundingMetadata?.groundingChunks
+      ?.map(chunk => chunk.web?.uri)
+      .filter((uri): uri is string => !!uri) || [];
+
+    return {
+      text: response.text,
+      sources: [...new Set(urls)]
+    };
+  } catch (error) {
+    console.error("Failed to get word insight", error);
+    return null;
+  }
+};
+
 export const generateQuiz = async (subcategory: string, type: string, difficulty: Difficulty = 'medium'): Promise<QuizQuestion[]> => {
   let content = getStoredContent(subcategory);
   if (content.length === 0) {
     content = await seedContent(subcategory, type);
   }
 
-  // Shuffle content to ensure dynamic question generation every time
   const shuffled = [...content].sort(() => 0.5 - Math.random());
   const selectedWords = shuffled.slice(0, 15).map(i => i.french).join(', ');
   
@@ -97,7 +146,7 @@ export const generateQuiz = async (subcategory: string, type: string, difficulty
 
   const prompt = `Create a unique, dynamic French quiz for kids using these words: ${selectedWords}.
   Difficulty: ${difficulty.toUpperCase()}.
-  Seed: ${seed} (Ensure questions are different from previous attempts).
+  Seed: ${seed}.
   Return JSON array of objects {question, options, correctAnswer, explanation}.`;
 
   try {
@@ -122,36 +171,10 @@ export const generateQuiz = async (subcategory: string, type: string, difficulty
       }
     });
 
-    return JSON.parse(response.text);
+    return JSON.parse(response.text || "[]");
   } catch (error) {
     console.error("Quiz generation failed", error);
     return [];
-  }
-};
-
-export const getFunFact = async (word: string) => {
-  const ai = getAI();
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Find a fun, kid-friendly cultural fact or usage fact about the French word "${word}". Use Google Search for accuracy.`,
-      config: {
-        tools: [{ googleSearch: {} }],
-      },
-    });
-
-    const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((chunk: any) => ({
-      title: chunk.web?.title || 'Source',
-      uri: chunk.web?.uri
-    })).filter((s: any) => s.uri) || [];
-
-    return {
-      text: response.text,
-      sources
-    };
-  } catch (error) {
-    console.error("Fun fact fetch failed", error);
-    return null;
   }
 };
 
@@ -161,55 +184,25 @@ export const analyzeHistory = async (history: HistoryItem[]): Promise<string> =>
   
   const prompt = `Analyze this French learning history for a child and provide encouraging, insightful feedback for a parent.
   Highlight:
-  1. Consistent strengths (where they score high or participate most).
-  2. Areas for improvement (where they struggle or have low frequency).
-  3. Learning trends (improvement over time, variety of subjects).
+  1. Consistent strengths.
+  2. Areas for improvement.
+  3. Learning trends.
   4. Practical tips to help them grow.
   
   History Data:
   ${historySummary}
   
-  Keep the tone positive, professional, and supportive. Use Markdown for formatting.`;
+  Keep the tone positive and supportive. Use Markdown for formatting.`;
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
     });
-    return response.text || "I couldn't generate insights at this time. Keep learning to provide more data!";
+    return response.text || "I couldn't generate insights at this time.";
   } catch (error) {
     console.error("History analysis failed", error);
-    return "Something went wrong while analyzing the history. Please try again later.";
-  }
-};
-
-export const generateMagicImage = async (prompt: string, size: '1K' | '2K' | '4K' = '1K') => {
-  const ai = getAI();
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-image-preview',
-      contents: {
-        parts: [{ text: `A vibrant, high-quality, kid-friendly illustration of: ${prompt}. Artistic style: 3D render, Pixar-like, bright colors.` }]
-      },
-      config: {
-        imageConfig: {
-          aspectRatio: "1:1",
-          imageSize: size
-        }
-      }
-    });
-
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
-    return null;
-  } catch (error: any) {
-    if (error?.message?.includes("entity was not found")) {
-      throw new Error("KEY_RESET");
-    }
-    throw error;
+    return "Something went wrong while analyzing the history.";
   }
 };
 

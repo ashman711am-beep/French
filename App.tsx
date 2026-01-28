@@ -9,7 +9,6 @@ import ParentDashboard from './components/ParentDashboard';
 import { VOCAB_SUBCATEGORIES, GRAMMAR_SUBCATEGORIES } from './constants';
 import { CategoryType, HistoryItem, ViewMode } from './types';
 
-// Home Component with playful UI
 const Home = () => (
   <div className="p-8 text-center max-w-5xl mx-auto">
     <div className="mb-12 animate-in fade-in zoom-in duration-700">
@@ -81,7 +80,6 @@ const SubCategoryPage = ({ type, stats, addLivePoints, recordHistory }: {
           <h1 className="text-5xl font-black text-gray-800 mb-2">{sub.name}</h1>
           <p className="text-xl text-gray-500 font-medium mb-6">{sub.description}</p>
           
-          {/* Progress Summary */}
           <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 max-w-md mx-auto">
              <div className="flex justify-between items-center mb-2">
                 <span className="font-black text-gray-400 uppercase tracking-tighter">Your Mastery</span>
@@ -190,7 +188,6 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Calculate stats by subcategory for power ratings
   const subcategoryStats = useMemo(() => {
     return history.reduce((acc: Record<string, number>, item) => {
       acc[item.subcategory] = (acc[item.subcategory] || 0) + item.score;
@@ -209,11 +206,16 @@ const App: React.FC = () => {
 
   const recordHistory = (points: number, subName: string, catName: string) => {
     const today = new Date().toISOString().split('T')[0];
+    const currentPoints = subcategoryStats[subName] || 0;
+    const finalPoints = currentPoints + points;
+    const powerRating = Math.min(Math.round((finalPoints / 500) * 100), 100);
+
     setHistory(prev => [...prev, {
       date: today,
       category: catName,
       subcategory: subName,
-      score: points
+      score: points,
+      powerRating: powerRating
     }]);
   };
 
