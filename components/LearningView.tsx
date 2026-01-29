@@ -29,7 +29,6 @@ const ADJECTIVE_GROUPS = [
   { id: 'tastes_senses', label: 'Senses', color: 'bg-green-500', icon: '👅' },
 ];
 
-// Helper to get color schemes for subjects
 const getSubjectStyles = (subject: string) => {
   const s = subject.toLowerCase();
   if (s.includes('je')) return { bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-700', sub: 'text-blue-400' };
@@ -140,13 +139,41 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
   const hasConjugations = current.conjugations && current.conjugations.length > 0;
   const displayImage = customImages[current.french] || `https://picsum.photos/seed/${current?.french}/400/300`;
 
-  // Special layout for the Article Overview Card
+  // Robust standardization to exactly 3 UNIQUE items
+  const examplesToShow = [];
+  
+  // 1. Prioritize multipleExamples if present and of sufficient length
+  if (current.multipleExamples && current.multipleExamples.length >= 3) {
+    examplesToShow.push(...current.multipleExamples.slice(0, 3));
+  } else {
+    // 2. Mix existing examples and fallbacks
+    const pool = [];
+    if (current.example) pool.push({ text: current.example, translation: current.exampleEnglish });
+    if (current.multipleExamples) pool.push(...current.multipleExamples);
+    
+    // Deduplicate pool by text
+    const uniquePool = Array.from(new Set(pool.map(p => p.text))).map(text => pool.find(p => p.text === text)!);
+    
+    examplesToShow.push(...uniquePool.slice(0, 3));
+    
+    // 3. Final safety fallbacks if still less than 3
+    const fallbacks = [
+      { text: `J'aime le mot "${current.french}".`, translation: `I like the word "${current.english}".` },
+      { text: `Regarde! C'est "${current.french}".`, translation: `Look! It's "${current.english}".` },
+      { text: `Comment dit-on "${current.english}"?`, translation: `How do you say "${current.english}"?` }
+    ];
+    
+    while(examplesToShow.length < 3) {
+      examplesToShow.push(fallbacks[examplesToShow.length]);
+    }
+  }
+
   if (current.isOverview) {
     return (
       <div className="flex flex-col h-full overflow-hidden p-2 sm:p-4 max-w-5xl mx-auto w-full">
         <div className="flex items-center justify-between mb-2 flex-shrink-0">
-          <span className="text-[10px] font-black text-blue-500 uppercase tracking-tighter">Lesson Intro</span>
-          <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-blue-400 w-[5%]" /></div>
+          <span className="text-[10px] font-black text-blue-500 uppercase tracking-tighter text-sm">Lesson Intro</span>
+          <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-blue-400 w-[5%]" /></div>
         </div>
 
         <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-4 bg-white rounded-3xl p-6 shadow-xl border-4 border-blue-50 overflow-hidden animate-in zoom-in duration-500">
@@ -168,7 +195,7 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
               <div className="space-y-3">
                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest px-2">Key Examples</h4>
                  <div className="space-y-2">
-                    {current.multipleExamples?.map((ex, i) => (
+                    {examplesToShow.map((ex, i) => (
                       <div 
                         key={i} 
                         onClick={() => playPronunciation(ex.text)}
@@ -188,7 +215,7 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
 
         <button 
           onClick={() => setCurrentIndex(1)} 
-          className="mt-4 w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-xl shadow-xl hover:bg-blue-700 transition-all active:scale-95"
+          className="mt-4 flex-shrink-0 w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-xl shadow-xl hover:bg-blue-700 transition-all active:scale-95 border-b-4 border-blue-800"
         >
           I've Got It! Start Learning Words →
         </button>
@@ -197,24 +224,25 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden p-2 sm:p-4 max-w-5xl mx-auto w-full">
+    <div className="flex flex-col h-full overflow-hidden p-2 sm:p-4 max-w-[1400px] mx-auto w-full">
       <div className="flex items-center justify-between mb-2 flex-shrink-0">
         <div className="flex items-center gap-2">
            <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Step {currentIndex + 1}/{items.length}</span>
-           <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-blue-400 transition-all duration-500" style={{ width: `${progressPercent}%` }} /></div>
+           <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-blue-400 transition-all duration-500" style={{ width: `${progressPercent}%` }} /></div>
         </div>
-        <button onClick={handlePrepareAll} className="text-[9px] font-bold bg-white border border-gray-100 px-2 py-0.5 rounded text-blue-600 transition-colors hover:bg-blue-50">
-           {preparingAll ? `⚡ ${prepProgress.current}/${prepProgress.total}` : "🪄 Prep All Images"}
+        <button onClick={handlePrepareAll} className="text-[10px] font-black bg-white border-2 border-gray-100 px-3 py-1 rounded-xl text-blue-600 transition-all hover:bg-blue-50 active:scale-95">
+           {preparingAll ? `⚡ Prepping ${prepProgress.current}/${prepProgress.total}` : "🪄 MAGIC PREP IMAGES"}
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-3 overflow-hidden justify-center items-stretch">
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-4 overflow-hidden items-stretch">
         
+        {/* Column 1: Conjugations (Narrow) - Only for Verbs */}
         {hasConjugations && (
-          <div className="md:w-44 lg:w-52 flex flex-col bg-white rounded-2xl p-2 shadow-sm border border-purple-50 flex-shrink-0 order-2 md:order-1">
-             <div className="flex items-center gap-1.5 mb-2 px-1">
-               <span className="text-base">🧪</span>
-               <h3 className="text-[9px] font-black text-purple-600 uppercase tracking-tight leading-tight">Conjugations</h3>
+          <div className="md:w-[22%] lg:w-[18%] flex flex-col bg-white rounded-3xl p-3 shadow-sm border-2 border-purple-50 flex-shrink-0 order-2 md:order-1 overflow-hidden">
+             <div className="flex items-center gap-2 mb-2 px-1 border-b border-purple-100 pb-2 flex-shrink-0">
+               <span className="text-xl">🧪</span>
+               <h3 className="text-[10px] font-black text-purple-600 uppercase tracking-tight">Verb Forms</h3>
              </div>
              <div className="flex-1 overflow-y-auto no-scrollbar space-y-1 pr-0.5">
                {current.conjugations!.map((c, i) => {
@@ -222,77 +250,117 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
                  return (
                    <div 
                     key={i} 
-                    className={`${styles.bg} ${styles.border} border p-1.5 rounded-lg flex items-center justify-between text-[10px] cursor-pointer transition-all hover:brightness-95 active:scale-95 group/conj`} 
+                    className={`${styles.bg} ${styles.border} border-2 p-2 rounded-xl flex items-center justify-between cursor-pointer transition-all hover:shadow-sm active:scale-95 group/conj`} 
                     onClick={() => playPronunciation(`${c.subject} ${c.form}`)}
                    >
                      <div className="leading-tight overflow-hidden">
-                       <span className={`${styles.sub} text-[6px] font-black block uppercase leading-none mb-0.5 truncate`}>{c.subject}</span>
-                       <span className={`font-black ${styles.text} text-[10px] truncate`}>{c.form}</span>
+                       <span className={`${styles.sub} text-[8px] font-black block uppercase leading-none mb-0.5 truncate`}>{c.subject}</span>
+                       <span className={`font-black ${styles.text} text-sm truncate`}>{c.form}</span>
                      </div>
-                     <span className={`${styles.sub} text-[9px] opacity-20 group-hover/conj:opacity-100 transition-opacity`}>🔊</span>
+                     <span className={`${styles.sub} text-sm opacity-20 group-hover/conj:opacity-100 transition-opacity`}>🔊</span>
                    </div>
                  );
                })}
              </div>
-             <p className="mt-1 text-[7px] text-gray-400 font-bold italic text-center">Tap to hear!</p>
+             <p className="mt-2 flex-shrink-0 text-[9px] text-gray-400 font-black italic text-center leading-none uppercase tracking-tighter">Tap Subject to hear!</p>
           </div>
         )}
 
-        <div className={`flex flex-col bg-white rounded-2xl p-2 shadow-sm border border-gray-100 overflow-hidden order-1 md:order-2 ${hasConjugations ? 'flex-1 md:max-w-md lg:max-w-xl' : 'max-w-xl mx-auto w-full'}`}>
-          <div className="flex-1 min-h-0 relative rounded-xl overflow-hidden bg-gray-50 mb-2 group">
-            {generatingImage && <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex items-center justify-center text-[10px] font-bold text-blue-600 animate-pulse">Illustrating...</div>}
-            <img src={displayImage} className="w-full h-full object-cover" alt={current.french} />
+        {/* Column 2: Main Illustration & Word Title - Center focus */}
+        <div className={`flex flex-col bg-white rounded-3xl p-4 shadow-xl border-4 border-gray-50 overflow-hidden order-1 md:order-2 flex-1 relative`}>
+          <div className="flex-1 min-h-0 relative rounded-2xl overflow-hidden bg-gray-50 mb-4 group shadow-inner border border-gray-100">
+            {generatingImage && <div className="absolute inset-0 z-10 bg-white/70 backdrop-blur-sm flex items-center justify-center text-[11px] font-black text-blue-600 animate-pulse text-center px-4">Creating educational visual...</div>}
+            <img src={displayImage} className="w-full h-full object-contain" alt={current.french} />
             <button 
               onClick={(e) => { e.stopPropagation(); handleGenerateImage(currentIndex, true); }} 
-              className="absolute bottom-1 right-1 bg-white/90 p-1 rounded-full text-[10px] opacity-0 group-hover:opacity-100 transition-all shadow-sm hover:scale-110"
+              className="absolute bottom-2 right-2 bg-white/95 p-2 rounded-full text-base opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:scale-110 border border-gray-100"
               title="Redraw illustration"
             >🎨</button>
           </div>
-          <div className="text-center flex-shrink-0">
-            <h2 className="text-xl font-black text-gray-800 leading-none mb-0.5">{current.french}</h2>
-            
-            {current.feminine && (
-              <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                <p className="text-[9px] font-black text-pink-500">Féminin: {current.feminine}</p>
-                <button onClick={() => playPronunciation(current.feminine!)} className="text-[9px] hover:scale-110 transition-transform">🔊</button>
+          
+          <div className="text-center flex-shrink-0 px-2 pb-1">
+            {current.feminine ? (
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
+                 <div className="bg-blue-50 border-2 border-blue-100 px-5 py-3 rounded-2xl flex items-center gap-4 shadow-sm transition-all hover:bg-white group/masc relative overflow-hidden flex-1 max-w-[200px]">
+                    <div className="text-left relative z-10">
+                       <span className="text-[9px] font-black text-blue-400 uppercase block leading-none mb-1">Masculin ♂️</span>
+                       <span className="text-2xl lg:text-3xl font-black text-gray-800 tracking-tight leading-none">{current.french}</span>
+                    </div>
+                    <button onClick={() => playPronunciation(current.french)} className="text-blue-500 hover:scale-125 transition-transform text-2xl relative z-10">🔊</button>
+                    <div className="absolute top-0 right-0 w-12 h-12 bg-blue-100/30 rounded-full -mr-6 -mt-6"></div>
+                 </div>
+                 
+                 <div className="bg-pink-50 border-2 border-pink-100 px-5 py-3 rounded-2xl flex items-center gap-4 shadow-sm transition-all hover:bg-white group/fem relative overflow-hidden flex-1 max-w-[200px]">
+                    <div className="text-left relative z-10">
+                       <span className="text-[9px] font-black text-pink-400 uppercase block leading-none mb-1">Féminin ♀️</span>
+                       <span className="text-2xl lg:text-3xl font-black text-gray-800 tracking-tight leading-none">{current.feminine}</span>
+                    </div>
+                    <button onClick={() => playPronunciation(current.feminine!)} className="text-pink-500 hover:scale-125 transition-transform text-2xl relative z-10">🔊</button>
+                    <div className="absolute top-0 right-0 w-12 h-12 bg-pink-100/30 rounded-full -mr-6 -mt-6"></div>
+                 </div>
               </div>
+            ) : (
+              <h2 className="text-4xl lg:text-5xl font-black text-gray-800 leading-none mb-1 tracking-tighter">{current.french}</h2>
             )}
             
-            <p className="text-[10px] font-bold text-blue-400 mb-1.5 uppercase tracking-tight">{current.english}</p>
+            <p className="text-xl font-bold text-blue-500 uppercase tracking-widest leading-none mb-4">{current.english}</p>
             
-            <button onClick={() => playPronunciation(current.french)} className="bg-blue-600 text-white px-3 py-1 rounded-full text-[9px] font-black mb-2 inline-flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-colors">
-              <span>🔊</span> Hear Base Word
-            </button>
-
-            <div 
-              onClick={() => playPronunciation(current.example)}
-              className="bg-slate-50 p-2 rounded-xl text-left border border-slate-100 cursor-pointer hover:bg-slate-100 transition-all group/ex relative active:scale-95"
-            >
-              <div className="flex justify-between items-center mb-0.5">
-                <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Example</p>
-                <span className="text-[9px] opacity-60 group-hover/ex:opacity-100 transition-opacity">🔊</span>
-              </div>
-              <p className="text-[11px] font-bold text-gray-800 leading-tight mb-0.5">{current.example}</p>
-              <p className="text-[9px] text-gray-500 italic leading-tight">{current.exampleEnglish}</p>
-            </div>
+            {!current.feminine && (
+              <button 
+                  onClick={() => playPronunciation(current.french)} 
+                  className="bg-blue-600 text-white px-10 py-3 rounded-2xl text-sm font-black inline-flex items-center justify-center gap-3 shadow-xl hover:bg-blue-700 transition-all active:scale-95 border-b-4 border-blue-800"
+              >
+                <span>🔊</span> HEAR PRONUNCIATION
+              </button>
+            )}
           </div>
+        </div>
+
+        {/* Column 3: Exactly 3 DIFFERENT Context Examples (Vertical List) */}
+        <div className="md:w-[32%] lg:w-[28%] flex flex-col bg-white rounded-3xl p-4 shadow-sm border-2 border-indigo-50 flex-shrink-0 order-3 overflow-hidden">
+           <div className="flex items-center gap-2 mb-3 px-1 border-b border-indigo-100 pb-2 flex-shrink-0">
+               <span className="text-xl">📚</span>
+               <h3 className="text-xs font-black text-indigo-600 uppercase tracking-tight">Context Examples</h3>
+           </div>
+           
+           <div className="flex-1 space-y-2 overflow-y-auto no-scrollbar pr-1">
+             {examplesToShow.map((ex, i) => (
+                <div 
+                  key={i} 
+                  onClick={() => playPronunciation(ex.text)}
+                  className="bg-indigo-50/50 p-3 rounded-2xl text-left border-2 border-transparent hover:border-indigo-300 hover:bg-white cursor-pointer transition-all group/ex relative active:scale-[0.98] shadow-sm flex flex-col min-h-0"
+                >
+                  <div className="flex justify-between items-center mb-1 flex-shrink-0">
+                    <span className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em]">Example {i+1}</span>
+                    <span className="text-lg opacity-20 group-hover/ex:opacity-100 transition-opacity">🔊</span>
+                  </div>
+                  <p className="text-sm font-black text-gray-800 leading-tight mb-1">{ex.text}</p>
+                  <p className="text-xs text-gray-500 italic font-medium leading-tight">{ex.translation}</p>
+                </div>
+             ))}
+           </div>
+           
+           <div className="mt-3 p-2 bg-slate-50 rounded-xl flex-shrink-0 border border-slate-100">
+              <p className="text-[10px] text-slate-400 font-black italic text-center leading-tight uppercase tracking-widest">Tap to listen to the custom sentences!</p>
+           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mt-2 flex-shrink-0">
+      {/* Footer Navigation */}
+      <div className="flex items-center gap-4 mt-4 flex-shrink-0">
         <button 
           onClick={() => { stopPrepRef.current = true; setCurrentIndex(i => Math.max(0, i - 1)); }} 
           disabled={currentIndex === 0} 
-          className="w-10 h-10 bg-white border border-gray-200 rounded-xl text-lg disabled:opacity-20 flex items-center justify-center transition-colors hover:bg-gray-50"
+          className="w-16 h-16 bg-white border-4 border-gray-100 rounded-3xl text-2xl disabled:opacity-20 flex items-center justify-center transition-all hover:bg-gray-50 hover:border-blue-200 shadow-sm active:scale-95"
         >←</button>
         <button 
           onClick={() => {
             stopPrepRef.current = true;
             currentIndex === items.length - 1 ? (isArticles || isAdjectives ? setSelectedSubTopic(null) : onComplete()) : setCurrentIndex(i => i + 1);
           }} 
-          className="flex-1 bg-blue-600 text-white h-10 rounded-xl font-black text-sm shadow-md transition-all hover:bg-blue-700 active:scale-95"
+          className="flex-1 bg-blue-600 text-white h-16 rounded-[2rem] font-black text-xl shadow-xl transition-all hover:bg-blue-700 hover:-translate-y-1 active:scale-95 border-b-8 border-blue-800"
         >
-           {currentIndex === items.length - 1 ? "Finish! 🏁" : "Next Discovery →"}
+           {currentIndex === items.length - 1 ? "VOILÀ! FINISH 🏁" : "NEXT WORD →"}
         </button>
       </div>
     </div>

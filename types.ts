@@ -43,4 +43,4 @@ export interface HistoryItem {
   powerRating?: number;
 }
 
-export type ViewMode = 'choice' | 'learning' | 'quiz' | 'speaking';
+export type ViewMode = 'choice' | 'learning' | 'quiz' | 'speaking' | 'pronunciation';

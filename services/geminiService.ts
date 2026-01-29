@@ -108,10 +108,10 @@ export const seedContent = async (subcategory: string, type: string, extraParam?
       For each verb, provide:
       1. The infinitive (french)
       2. English translation (english)
-      3. A simple kid-friendly example sentence (example)
-      4. English translation of the example (exampleEnglish)
-      5. The full conjugation for all 6 subjects: Je, Tu, Il/Elle/On, Nous, Vous, Ils/Elles.
-      Format: JSON array of objects {french, english, example, exampleEnglish, conjugations: [{subject, form}]}.`;
+      3. EXACTLY THREE DIFFERENT and UNIQUE simple kid-friendly example sentences (multipleExamples: [{text, translation}]) that MUST use this specific verb in the ${subcategory} tense. The examples must vary in context.
+      4. The full conjugation for all 6 subjects: Je, Tu, Il/Elle/On, Nous, Vous, Ils/Elles.
+      IMPORTANT: 'example' and 'exampleEnglish' can be copies of the first item in multipleExamples.
+      Format: JSON array of objects {french, english, example, exampleEnglish, multipleExamples: [{text, translation}], conjugations: [{subject, form}]}.`;
     } else if (isArticles) {
       const targetArticle = extraParam || "le";
       prompt = `Generate exactly 50 common French noun phrases using the article "${targetArticle}". 
@@ -122,43 +122,40 @@ export const seedContent = async (subcategory: string, type: string, extraParam?
       - isOverview: true
       - example: "Brief rule explanation in French"
       - exampleEnglish: "Brief rule explanation in English"
-      - multipleExamples: [ {text: "Full French example 1", translation: "English 1"}, ... (at least 3) ]
+      - multipleExamples: [ {text: "Full French example 1 using the article", translation: "English 1"}, ... (at least 3 UNIQUE ones) ]
 
-      The following 49 items should be standard noun phrases.
+      The following 49 items should be standard noun phrases. Each MUST include 3 UNIQUE example sentences.
       Format: JSON array of objects {french, english, example, exampleEnglish, isOverview, multipleExamples: [{text, translation}]}.`;
     } else if (isAdjectives) {
       const adjectiveType = extraParam || "General";
       prompt = `Generate exactly 20 French adjectives specifically for the category: "${adjectiveType}".
-      IMPORTANT: For each adjective, provide BOTH the masculine and feminine forms.
+      IMPORTANT: For each adjective, provide BOTH the masculine (french) and feminine (feminine) forms.
       Include common, useful words for kids.
+      For each adjective, provide EXACTLY THREE DIFFERENT and UNIQUE simple kid-friendly example sentences (multipleExamples: [{text, translation}]) that MUST use this specific adjective. Ensure the examples demonstrate varied contexts and both masculine and feminine usage where appropriate.
       Format: JSON array of objects:
       {
         "french": "Masculine form",
         "feminine": "Feminine form",
         "english": "English translation",
-        "example": "Simple sentence using one of the forms",
-        "exampleEnglish": "Sentence translation"
+        "multipleExamples": [{ "text": "Unique sentence using this word", "translation": "English" }],
+        "example": "First unique sentence",
+        "exampleEnglish": "First unique translation"
       }`;
     } else if (isPronouns) {
-      prompt = `Generate exactly 20 French pronouns for kids (subject, object, and possessive).
-      Include the basics like "je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles" and others like "moi", "toi", "lui".
-      Format: JSON array of objects {french, english, example, exampleEnglish}.`;
+      prompt = `Generate exactly 20 French pronouns for kids. Each MUST include 3 UNIQUE example sentences using the specific pronoun.
+      Format: JSON array of objects {french, english, example, exampleEnglish, multipleExamples: [{text, translation}]}.`;
     } else if (subcategory === 'prepositions') {
-      prompt = `Generate a list of 20 French prepositions (sur, sous, dans, devant, etc.) for kids.
-      For each item, provide:
-      1. The preposition (french)
-      2. English translation (english)
-      3. A simple example sentence (example)
-      4. Translation (exampleEnglish)
-      Format: JSON array of objects {french, english, example, exampleEnglish}.`;
+      prompt = `Generate a list of 20 French prepositions. Each MUST include 3 UNIQUE example sentences using the specific preposition.
+      Format: JSON array of objects {french, english, example, exampleEnglish, multipleExamples: [{text, translation}]}.`;
     } else {
-      prompt = `Generate 20 items for the French grammar topic "${subcategory}". 
-      Format: JSON array of objects {french, english, example, exampleEnglish}.`;
+      prompt = `Generate 20 items for the French grammar topic "${subcategory}". Each MUST include 3 UNIQUE example sentences using the item.
+      Format: JSON array of objects {french, english, example, exampleEnglish, multipleExamples: [{text, translation}]}.`;
     }
   } else {
     prompt = `Generate exactly 50 frequently used French vocabulary items for the subcategory "${subcategory}". 
     Focus on common, essential objects and concepts for children.
-    Format: JSON array of objects {french, english, example, exampleEnglish}.`;
+    IMPORTANT: For each word, provide EXACTLY THREE DIFFERENT and UNIQUE simple kid-friendly example sentences (multipleExamples: [{text, translation}]) that MUST use this specific word.
+    Format: JSON array of objects {french, english, example, exampleEnglish, multipleExamples: [{text, translation}]}.`;
   }
 
   try {

@@ -55,7 +55,6 @@ const Home = () => (
   </div>
 );
 
-// Define StatsPage component to fix the 'Cannot find name StatsPage' error
 const StatsPage = ({ stars }: { stars: number }) => (
   <div className="p-8 text-center max-w-4xl mx-auto">
     <div className="bg-white rounded-5xl p-12 shadow-2xl border-4 border-yellow-100 relative overflow-hidden">
@@ -133,14 +132,23 @@ const SubCategoryPage = ({ type, stats, addLivePoints, recordHistory }: {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           <button 
             onClick={() => setMode(isSpeaking ? 'speaking' : 'learning')}
             className="bg-white border-4 border-blue-400 rounded-5xl p-10 shadow-xl hover:bg-blue-50 transition-all hover:scale-105"
           >
             <div className="text-5xl mb-4">{isSpeaking ? '💬' : '📖'}</div>
-            <h3 className="text-3xl font-black text-blue-600 mb-2">{isSpeaking ? 'Conversation' : 'Learn'}</h3>
-            <p className="text-gray-500 font-bold">{isSpeaking ? 'Practice free talking with your AI tutor!' : 'Explore the Top 50 items!'}</p>
+            <h3 className="text-3xl font-black text-blue-600 mb-2">{isSpeaking ? 'Free Talk' : 'Learn'}</h3>
+            <p className="text-gray-500 font-bold">{isSpeaking ? 'Practice free talking with your AI tutor!' : 'Explore the words and rules!'}</p>
+          </button>
+
+          <button 
+            onClick={() => setMode('pronunciation')}
+            className="bg-white border-4 border-yellow-400 rounded-5xl p-10 shadow-xl hover:bg-yellow-50 transition-all hover:scale-105"
+          >
+            <div className="text-5xl mb-4">👄</div>
+            <h3 className="text-3xl font-black text-yellow-600 mb-2">Speak Clearly</h3>
+            <p className="text-gray-500 font-bold">Practice specific words and phrases with feedback!</p>
           </button>
 
           <button 
@@ -148,8 +156,8 @@ const SubCategoryPage = ({ type, stats, addLivePoints, recordHistory }: {
             className="bg-white border-4 border-green-400 rounded-5xl p-10 shadow-xl hover:bg-green-50 transition-all hover:scale-105"
           >
             <div className="text-5xl mb-4">🎯</div>
-            <h3 className="text-3xl font-black text-green-600 mb-2">{isSpeaking ? 'Speaking Quiz' : 'Quiz'}</h3>
-            <p className="text-gray-500 font-bold">{isSpeaking ? 'Interactive oral exam - answer in full sentences!' : 'Test your skills & earn stars'}</p>
+            <h3 className="text-3xl font-black text-green-600 mb-2">{isSpeaking ? 'Oral Quiz' : 'Quiz'}</h3>
+            <p className="text-gray-500 font-bold">{isSpeaking ? 'Test your oral skills in a real exam format!' : 'Test your skills & earn stars'}</p>
           </button>
         </div>
       </div>
@@ -183,6 +191,8 @@ const SubCategoryPage = ({ type, stats, addLivePoints, recordHistory }: {
           subId={sub.id}
           subName={sub.name}
           isQuizMode={mode === 'quiz'}
+          isPronunciationMode={mode === 'pronunciation'}
+          category={type}
           onPointEarned={addLivePoints}
           onFinish={handleFinishSpeaking}
         />
