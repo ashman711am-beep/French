@@ -78,7 +78,6 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
     try {
       const hasKey = await (window as any).aistudio.hasSelectedApiKey();
       if (!hasKey) {
-        // Only trigger mandatory key dialog if it's the current view and we're missing a key
         if (index === currentIndex) setErrorStatus("KEY_REQUIRED");
         return;
       }
@@ -125,7 +124,6 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
       if (!await getStoredImage(items[i].french)) {
         setPrepProgress({ current: i + 1, total: items.length });
         await handleGenerateImage(i);
-        // Add a small delay between requests to avoid potential quick-fire rate limiting
         await new Promise(r => setTimeout(r, 600));
       }
     }
@@ -290,8 +288,8 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
 
         {/* Main Content Card - Central Stage */}
         <div className={`flex flex-col bg-white rounded-3xl p-4 shadow-xl border-4 border-gray-50 overflow-hidden order-1 md:order-2 ${showGrammarSidebar ? 'flex-1' : 'max-w-3xl mx-auto w-full'}`}>
-          {/* Reduced Picture Size Container */}
-          <div className="h-40 sm:h-48 md:h-56 relative rounded-2xl overflow-hidden bg-gray-100 mb-4 group shadow-inner border border-gray-100 flex-shrink-0">
+          {/* Reduced Picture Size Container for Grammar & Verbs */}
+          <div className={`${hasConjugations ? 'h-32 sm:h-40 md:h-44' : 'h-40 sm:h-48 md:h-56'} relative rounded-2xl overflow-hidden bg-gray-100 mb-4 group shadow-inner border border-gray-100 flex-shrink-0`}>
             {generatingImage && <div className="absolute inset-0 z-10 bg-white/70 backdrop-blur-sm flex items-center justify-center text-sm font-black text-blue-600 animate-pulse">Creating educational visual...</div>}
             {errorStatus && <div className="absolute inset-0 z-10 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
                   <p className="text-xs font-black text-red-500 mb-2">
@@ -311,7 +309,6 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
           <div className="text-center flex-1 flex flex-col justify-center px-2">
             {current.feminine ? (
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-3">
-                 {/* Masculin Form */}
                  <div className="bg-blue-50 border-2 border-blue-100 px-4 py-3 rounded-2xl flex items-center gap-3 shadow-sm flex-1 max-w-[280px]">
                     <button onClick={() => playPronunciation(current.french)} className="text-blue-500 text-3xl flex-shrink-0 hover:scale-110 transition-transform">🔊</button>
                     <div className="text-left overflow-hidden">
@@ -320,7 +317,6 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
                     </div>
                  </div>
                  
-                 {/* Féminin Form */}
                  <div className="bg-pink-50 border-2 border-pink-100 px-4 py-3 rounded-2xl flex items-center gap-3 shadow-sm flex-1 max-w-[280px]">
                     <button onClick={() => playPronunciation(current.feminine!)} className="text-pink-500 text-3xl flex-shrink-0 hover:scale-110 transition-transform">🔊</button>
                     <div className="text-left overflow-hidden">
@@ -330,14 +326,14 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
                  </div>
               </div>
             ) : (
-              <h2 className="text-4xl font-black text-gray-800 leading-tight mb-1">{current.french}</h2>
+              <h2 className={`${hasConjugations ? 'text-3xl' : 'text-4xl'} font-black text-gray-800 leading-tight mb-1`}>{current.french}</h2>
             )}
             
-            <p className="text-lg font-bold text-blue-500 mb-3 uppercase tracking-widest">{current.english}</p>
+            <p className={`${hasConjugations ? 'text-base' : 'text-lg'} font-bold text-blue-500 mb-3 uppercase tracking-widest`}>{current.english}</p>
             
             <div className="flex flex-col gap-3">
-              {/* Show example specifically for Grammar Adjectives as requested */}
-              {(category !== 'GRAMMAR' || (category === 'GRAMMAR' && isAdjectives)) && (
+              {/* Show context example specifically for Grammar Adjectives and Verbs */}
+              {(category !== 'GRAMMAR' || (category === 'GRAMMAR' && (isAdjectives || hasConjugations))) && (
                 <div 
                   onClick={() => playPronunciation(current.example)}
                   className="bg-slate-50 p-3 rounded-xl text-left border-2 border-slate-100 cursor-pointer hover:bg-white hover:border-blue-200 transition-all group/ex relative active:scale-[0.98] shadow-sm"
@@ -351,7 +347,7 @@ const LearningView: React.FC<LearningViewProps> = ({ subId, category, onComplete
                 </div>
               )}
 
-              {!current.feminine && !isAdjectives && (
+              {!current.feminine && !isAdjectives && !hasConjugations && (
                 <button onClick={() => playPronunciation(current.french)} className="bg-blue-600 text-white px-6 py-2 rounded-2xl text-sm font-black inline-flex items-center justify-center gap-2 shadow-lg hover:bg-blue-700 transition-all active:scale-95">
                   <span>🔊</span> Pronounce Word
                 </button>
