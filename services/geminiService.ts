@@ -79,7 +79,13 @@ async function decodeAudioData(
 
 export const getStoredContent = (subId: string): WordItem[] => {
   const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${subId}`);
-  return stored ? JSON.parse(stored) : [];
+  if (!stored) return [];
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    console.error("Corrupt local storage for", subId);
+    return [];
+  }
 };
 
 export const seedContent = async (subcategory: string, type: string, extraParam?: string): Promise<WordItem[]> => {
@@ -91,74 +97,44 @@ export const seedContent = async (subcategory: string, type: string, extraParam?
   const isAdjectives = subcategory === 'adjectives';
   const isPronouns = subcategory === 'pronouns';
   const isSpeaking = type === 'SPEAKING';
-  const limit = (isArticles || isVerbTense || type === 'VOCABULARY' || isSpeaking) ? 50 : 20;
+  
+  // Adjusted limits: Verbs are "heavy" due to conjugations, so we request fewer per batch
+  const limit = isVerbTense ? 12 : 15;
   
   if (existing.length >= limit) return existing;
 
   const ai = getAI();
   let prompt = "";
 
+  const commonConstraints = "Keep examples and translations extremely short (under 5 words). Do not include unnecessary text.";
+
   if (isSpeaking) {
-    prompt = `Generate a list of exactly 20 French phrases and key vocabulary items related to the speaking topic: "${subcategory}". 
-    Focus on conversational phrases a child would use.
-    Format: JSON array of objects {french, english, example, exampleEnglish}.`;
+    prompt = `Generate exactly 15 French phrases for kids about: "${subcategory}". 
+    Include simplified "phonetic" pronunciation. ${commonConstraints}
+    Format: JSON array of objects {french, english, example, exampleEnglish, phonetic}.`;
   } else if (type === 'GRAMMAR') {
     if (isVerbTense) {
-      prompt = `Generate a list of exactly 50 most used French verbs in the ${subcategory} tense. 
-      For each verb, provide:
-      1. The infinitive (french)
-      2. English translation (english)
-      3. A simple kid-friendly example sentence (example)
-      4. English translation of the example (exampleEnglish)
-      5. The full conjugation for all 6 subjects: Je, Tu, Il/Elle/On, Nous, Vous, Ils/Elles.
-      Format: JSON array of objects {french, english, example, exampleEnglish, conjugations: [{subject, form}]}.`;
+      prompt = `Generate exactly 12 common French verbs in "${subcategory}" tense. 
+      Include "phonetic" for infinitive. ${commonConstraints}
+      For each: infinitive (french), English (english), 6 subject conjugations (Je, Tu, Il/Elle/On, Nous, Vous, Ils/Elles).
+      Format: JSON array of objects {french, english, example, exampleEnglish, phonetic, conjugations: [{subject, form}]}.`;
     } else if (isArticles) {
       const targetArticle = extraParam || "le";
-      prompt = `Generate exactly 50 common French noun phrases using the article "${targetArticle}". 
-      IMPORTANT: The first item in the array MUST be a special "Overview" card for the article "${targetArticle}".
-      For the Overview card: 
-      - french: "${targetArticle.toUpperCase()}"
-      - english: "Grammar Rule: When to use ${targetArticle}"
-      - isOverview: true
-      - example: "Brief rule explanation in French"
-      - exampleEnglish: "Brief rule explanation in English"
-      - multipleExamples: [ {text: "Full French example 1", translation: "English 1"}, ... (at least 3) ]
-
-      The following 49 items should be standard noun phrases.
-      Format: JSON array of objects {french, english, example, exampleEnglish, isOverview, multipleExamples: [{text, translation}]}.`;
+      prompt = `Generate exactly 15 French noun phrases with "${targetArticle}". 
+      Item 1 must be an "Overview" card. ${commonConstraints}
+      Format: JSON array of objects {french, english, example, exampleEnglish, phonetic, isOverview, multipleExamples: [{text, translation}]}.`;
     } else if (isAdjectives) {
-      const adjectiveType = extraParam || "General";
-      prompt = `Generate exactly 20 French adjectives specifically for the category: "${adjectiveType}".
-      IMPORTANT: For each adjective, provide BOTH the masculine and feminine forms.
-      Include common, useful words for kids.
-      Format: JSON array of objects:
-      {
-        "french": "Masculine form",
-        "feminine": "Feminine form",
-        "english": "English translation",
-        "example": "Simple sentence using one of the forms",
-        "exampleEnglish": "Sentence translation"
-      }`;
-    } else if (isPronouns) {
-      prompt = `Generate exactly 20 French pronouns for kids (subject, object, and possessive).
-      Include the basics like "je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles" and others like "moi", "toi", "lui".
-      Format: JSON array of objects {french, english, example, exampleEnglish}.`;
-    } else if (subcategory === 'prepositions') {
-      prompt = `Generate a list of 20 French prepositions (sur, sous, dans, devant, etc.) for kids.
-      For each item, provide:
-      1. The preposition (french)
-      2. English translation (english)
-      3. A simple example sentence (example)
-      4. Translation (exampleEnglish)
-      Format: JSON array of objects {french, english, example, exampleEnglish}.`;
+      prompt = `Generate exactly 15 French adjectives for: "${extraParam || "General"}".
+      Provide masculine (french) and feminine forms. ${commonConstraints}
+      Format: JSON array of objects: {french, feminine, english, example, exampleEnglish, phonetic}.`;
     } else {
-      prompt = `Generate 20 items for the French grammar topic "${subcategory}". 
-      Format: JSON array of objects {french, english, example, exampleEnglish}.`;
+      prompt = `Generate 15 French grammar items for "${subcategory}". ${commonConstraints}
+      Format: JSON array of objects {french, english, example, exampleEnglish, phonetic}.`;
     }
   } else {
-    prompt = `Generate exactly 50 frequently used French vocabulary items for the subcategory "${subcategory}". 
-    Focus on common, essential objects and concepts for children.
-    Format: JSON array of objects {french, english, example, exampleEnglish}.`;
+    prompt = `Generate exactly 15 essential French vocabulary items for "${subcategory}". 
+    Include simplified child-friendly phonetic guide. ${commonConstraints}
+    Format: JSON array of objects {french, english, example, exampleEnglish, phonetic}.`;
   }
 
   try {
@@ -167,6 +143,7 @@ export const seedContent = async (subcategory: string, type: string, extraParam?
       contents: prompt,
       config: {
         responseMimeType: "application/json",
+        maxOutputTokens: 6000, // Reduced to prevent truncation while ensuring complete JSON
         responseSchema: {
           type: Type.ARRAY,
           items: {
@@ -177,7 +154,7 @@ export const seedContent = async (subcategory: string, type: string, extraParam?
               english: { type: Type.STRING },
               example: { type: Type.STRING },
               exampleEnglish: { type: Type.STRING },
-              articleType: { type: Type.STRING },
+              phonetic: { type: Type.STRING },
               isOverview: { type: Type.BOOLEAN },
               multipleExamples: {
                 type: Type.ARRAY,
@@ -208,10 +185,19 @@ export const seedContent = async (subcategory: string, type: string, extraParam?
       }
     });
 
-    const newItems: WordItem[] = JSON.parse(response.text || "[]");
-    const updated = [...existing, ...newItems].slice(0, 100);
-    localStorage.setItem(`${STORAGE_KEY_PREFIX}${storageId}`, JSON.stringify(updated));
-    return updated;
+    const rawText = response.text || "[]";
+    // Robust cleanup to handle common API formatting issues
+    const cleanedText = rawText.trim().replace(/^```json\s*/, "").replace(/\s*```$/, "");
+    
+    try {
+      const newItems: WordItem[] = JSON.parse(cleanedText);
+      const updated = [...existing, ...newItems].slice(0, 40);
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}${storageId}`, JSON.stringify(updated));
+      return updated;
+    } catch (parseError) {
+      console.error("Failed to parse Gemini JSON output:", parseError, "Cleaned text length:", cleanedText.length);
+      return existing;
+    }
   } catch (error) {
     console.error("Seeding failed", error);
     return existing;
@@ -263,17 +249,14 @@ export const generateQuiz = async (subcategory: string, type: string, difficulty
   }
 
   const shuffled = [...content].sort(() => 0.5 - Math.random());
-  const selectedWords = shuffled.slice(0, 15).map(i => i.french).join(', ');
+  const selectedWords = shuffled.slice(0, 8).map(i => i.french).join(', ');
   
   const ai = getAI();
   const seed = Math.floor(Math.random() * 1000000);
 
-  const prompt = `Create a unique, dynamic French quiz for kids based on the topic: ${subcategory} (${type}).
-  Use these specific terms from the curriculum: ${selectedWords}.
-  Difficulty: ${difficulty.toUpperCase()}.
-  Seed: ${seed}.
-  If it is grammar, focus on rules and correct usage in context.
-  Return JSON array of objects {question, options, correctAnswer, explanation}.`;
+  const prompt = `Create a unique French quiz for kids. Topic: ${subcategory}. 
+  Words: ${selectedWords}. Difficulty: ${difficulty.toUpperCase()}. Seed: ${seed}.
+  Return JSON array of 5 objects {question, options, correctAnswer, explanation}.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -281,6 +264,7 @@ export const generateQuiz = async (subcategory: string, type: string, difficulty
       contents: prompt,
       config: {
         responseMimeType: "application/json",
+        maxOutputTokens: 3000,
         responseSchema: {
           type: Type.ARRAY,
           items: {
@@ -308,22 +292,18 @@ export const analyzeHistory = async (history: HistoryItem[]): Promise<string> =>
   const ai = getAI();
   const historySummary = history.map(h => `${h.date}: ${h.category}/${h.subcategory} - ${h.score} points`).join('\n');
   
-  const prompt = `Analyze this French learning history for a child and provide encouraging, insightful feedback for a parent.
-  Highlight:
-  1. Consistent strengths.
-  2. Areas for improvement.
-  3. Learning trends.
-  4. Practical tips to help them grow.
-  
-  History Data:
+  const prompt = `Analyze this French learning history for a child and provide encouraging feedback.
+  History:
   ${historySummary}
-  
-  Keep the tone positive and supportive. Use Markdown for formatting.`;
+  Keep it positive and short. Use Markdown.`;
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
+      config: {
+        maxOutputTokens: 2000
+      }
     });
     return response.text || "I couldn't generate insights at this time.";
   } catch (error) {
@@ -332,12 +312,13 @@ export const analyzeHistory = async (history: HistoryItem[]): Promise<string> =>
   }
 };
 
-export const playPronunciation = async (text: string) => {
+export const playPronunciation = async (text: string, slow: boolean = false) => {
   const ai = getAI();
+  const speedText = slow ? "very slowly" : "clearly";
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `Say this clearly for a child: ${text}` }] }],
+      contents: [{ parts: [{ text: `Say this ${speedText} for a child: ${text}` }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {

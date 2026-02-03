@@ -17,6 +17,7 @@ export interface SubCategory {
 
 export interface WordItem {
   french: string;
+  phonetic?: string;
   feminine?: string;
   english: string;
   example: string;
